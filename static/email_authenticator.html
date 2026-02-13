@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PUSDC | Verifying Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <link rel="stylesheet" href="css/pages/email_authenticator.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="card" id="mainCard">
+            <div id="verifying">
+                <div class="loader-wrapper">
+                    <div class="loader"></div>
+                </div>
+                <h1>Verifying Link</h1>
+                <p>Establishing a secure session, please wait...</p>
+            </div>
+
+            <div id="errorState" style="display: none">
+                <div class="error-icon">⚠️</div>
+                <h1 id="errorTitle">Verification Failed</h1>
+                <p id="errorMsg">
+                    This link may be expired or already used. Please request a new one.
+                </p>
+                <a href="email_login.html" class="btn">Request New Link</a>
+            </div>
+
+            <div id="successState" style="display: none">
+                <div style="color: var(--success); font-size: 48px; margin-bottom: 24px">
+                    ✓
+                </div>
+                <h1>Success!</h1>
+                <p>Logging you in now...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <script src="js/common/email_common.js"></script>
+    <script src="js/pages/email_authenticator.js"></script>
+</body>
+
+</html>
+
+

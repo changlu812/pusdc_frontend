@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paillier USDC</title>
+
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --danger: #ef4444;
+            --success: #22c55e;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            background-color: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        button {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            background-color: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button.outline {
+            background-color: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+
+        button.outline:hover {
+            background-color: rgba(56, 189, 248, 0.1);
+        }
+
+        button.success {
+            color: var(--success);
+            border-color: var(--success);
+        }
+
+        button.success:hover {
+            background-color: rgba(34, 197, 94, 0.1);
+        }
+
+        button.danger {
+            color: var(--danger);
+            border-color: var(--danger);
+        }
+
+        button.danger:hover {
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.7rem;
+            border-radius: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: rgba(0, 0, 0, 0.2);
+            color: white;
+            box-sizing: border-box;
+        }
+
+        .status-box {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 0.5rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            word-break: break-all;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #login-view {
+            text-align: center;
+            margin-top: 4rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.25rem;
+            border-radius: 0.5rem;
+        }
+
+        .tab-trigger {
+            flex: 1;
+            padding: 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 0.4rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .tab-trigger.active {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .tab-trigger:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Paillier USDC</h1>
+        <div id="user-info" class="hidden">
+            <span id="address-display"
+                style="margin-right: 1rem; color: var(--text-secondary); font-family: monospace;"></span>
+            <button id="btn-logout" class="outline">Logout</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Login View -->
+        <div id="login-view">
+            <div class="card" style="max-width: 400px; margin: 0 auto;">
+                <h2>Welcome</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+                    Connect securely using your Ethereum wallet.
+                </p>
+                <button id="btn-login" style="width: 100%; padding: 1rem;">
+                    Connect Wallet
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard View -->
+        <div id="dashboard-view" class="hidden">
+
+            <!-- Balance Card -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <h2>Wallet Balances</h2>
+                <div style="display: flex; gap: 2rem;">
+                    <div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase;">
+                            Public
+                            Balance</div>
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">
+                            <span id="balance-usdc">0.000000</span> <span
+                                style="font-size: 1rem; color: var(--text-secondary);">USDC</span>
+                        </div>
+                        <div style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-secondary);">
+                            To get test USDC tokens, visit <a href="https://x.zentra.dev/testnet3_faucet/"
+                                target="_blank"
+                                style="color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--accent);">https://x.zentra.dev/testnet3_faucet/</a>
+                        </div>
+                        <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary);">
+                            Gas is required for interactions. Get Base Sepolia ETH at <a
+                                href="https://www.alchemy.com/faucets/base-sepolia" target="_blank"
+                                style="color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--accent);">Alchemy
+                                Faucet</a>
+                        </div>
+                    </div>
+                    <div style="border-left: 1px solid rgba(255,255,255,0.1); padding-left: 2rem;">
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase;">
+                            Privacy
+                            Balance</div>
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--success);">
+                            <span id="balance-pusdc">0</span> <span
+                                style="font-size: 1rem; color: var(--text-secondary);">PUSDC</span>
+                        </div>
+                        <div style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.2rem;"
+                            title="Encrypted on-chain balance">
+                            Balance in Ciphertext: <span id="balance-cipher"
+                                style="font-family: monospace; word-break: break-all;">-</span>
+                        </div>
+                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05);">
+                            <label
+                                style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em;">Subaccount</label>
+                            <select id="subaccount-select"
+                                style="background: rgba(30, 41, 59, 0.5); color: var(--text-primary); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; padding: 0.5rem; width: 100%; cursor: pointer; font-size: 0.9rem; outline: none; transition: border-color 0.2s;">
+                                <option value="1">Subaccount 1 (Main)</option>
+                                <option value="2">Subaccount 2</option>
+                                <option value="3">Subaccount 3</option>
+                                <option value="4">Subaccount 4</option>
+                                <option value="5">Subaccount 5</option>
+                                <option value="6">Subaccount 6</option>
+                                <option value="7">Subaccount 7</option>
+                                <option value="8">Subaccount 8</option>
+                                <option value="9">Subaccount 9</option>
+                                <option value="10">Subaccount 10</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <button id="btn-refresh" class="outline"
+                    style="margin-top: 1.5rem; font-size: 0.8rem; width: 100%;">Refresh Dashboard</button>
+            </div>
+
+            <div class="grid">
+                <!-- Deposit & Withdraw Combined Flow -->
+                <div class="card" id="deposit-withdraw-card">
+                    <div class="tabs">
+                        <div class="tab-trigger active" data-tab="deposit"
+                            onclick="switchTab('deposit-withdraw-card', 'deposit')">Deposit</div>
+                        <div class="tab-trigger" data-tab="withdraw"
+                            onclick="switchTab('deposit-withdraw-card', 'withdraw')">Withdraw</div>
+                    </div>
+
+                    <!-- Deposit Section -->
+                    <div id="section-deposit" class="tab-section">
+                        <h3 style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 1rem;">Deposit USDC to
+                            PUSDC</h3>
+                        <div class="form-group">
+                            <label>Amount (USDC)</label>
+                            <input type="number" id="deposit-amount" value="100">
+                        </div>
+                        <button id="btn-deposit" style="width: 100%;">Step 1: Deposit</button>
+
+                        <div id="deposit-step2-area" class="hidden"
+                            style="margin-top: 1rem; background: rgba(56, 189, 248, 0.1); padding: 1rem; border-radius: 0.5rem;">
+                            <div style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent);">
+                                Deposit Witnessed. Ready to Enter.
+                            </div>
+                            <div style="display:flex; gap:1rem;">
+                                <button id="btn-enter" class="outline" style="flex:1;">Step 2: Enter</button>
+                                <button id="btn-deposit-cancel" class="outline danger">Cancel</button>
+                            </div>
+                        </div>
+                        <div class="status-box" id="status-deposit" style="margin-top: 0.5rem;">No recent deposit.</div>
+                    </div>
+
+                    <!-- Withdraw Section -->
+                    <div id="section-withdraw" class="tab-section hidden">
+                        <h3 style="font-size: 1rem; color: var(--text-secondary); margin-bottom: 1rem;">Withdraw PUSDC
+                            to USDC</h3>
+                        <div class="form-group">
+                            <label>Amount (PUSDC)</label>
+                            <input type="number" id="withdraw-amount" value="50">
+                        </div>
+                        <button id="btn-withdraw" style="width: 100%;">Step 1: Withdraw</button>
+
+                        <div id="withdraw-step2-area" class="hidden"
+                            style="margin-top: 1rem; background: rgba(56, 189, 248, 0.1); padding: 1rem; border-radius: 0.5rem;">
+                            <div style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent);">
+                                Withdraw Witnessed. Ready to Exit.
+                            </div>
+                            <div style="display:flex; gap:1rem;">
+                                <button id="btn-exit" class="outline" style="flex:1;">Step 2: Exit</button>
+                                <button id="btn-withdraw-cancel" class="outline danger">Cancel</button>
+                            </div>
+                        </div>
+                        <div class="status-box" id="status-withdraw" style="margin-top: 0.5rem;">No recent withdraw.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Send/Move Flow -->
+                <div class="card" id="send-move-card">
+                    <div class="tabs">
+                        <div class="tab-trigger active" data-tab="send" onclick="switchTab('send-move-card', 'send')">
+                            Send</div>
+                        <div class="tab-trigger" data-tab="move" onclick="switchTab('send-move-card', 'move')">Move
+                        </div>
+                    </div>
+                    <div id="send-subaccount-label"
+                        style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">from subaccount 1
+                    </div>
+
+                    <!-- Send Section -->
+                    <div id="section-send" class="tab-section">
+                        <div class="form-group">
+                            <label>To Address</label>
+                            <input type="text" id="send-to-addr" placeholder="0x..." value="">
+                        </div>
+                        <div class="form-group">
+                            <label>Amount (PUSDC)</label>
+                            <input type="number" id="send-amount-val" value="10">
+                        </div>
+                        <button id="btn-send-execute" style="width: 100%;" onclick="executeSend('send')">Step 1: Send to
+                            Address</button>
+                    </div>
+
+                    <!-- Move Section -->
+                    <div id="section-move" class="tab-section hidden">
+                        <div class="form-group" style="margin-bottom: 1rem;">
+                            <label>To Subaccount</label>
+                            <select id="move-to-subaccount"
+                                style="background: rgba(0, 0, 0, 0.2); color: white; border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; padding: 0.7rem; width: 100%; cursor: pointer;">
+                                <option value="1">Subaccount 1 (Main)</option>
+                                <option value="2">Subaccount 2</option>
+                                <option value="3">Subaccount 3</option>
+                                <option value="4">Subaccount 4</option>
+                                <option value="5">Subaccount 5</option>
+                                <option value="6">Subaccount 6</option>
+                                <option value="7">Subaccount 7</option>
+                                <option value="8">Subaccount 8</option>
+                                <option value="9">Subaccount 9</option>
+                                <option value="10">Subaccount 10</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Amount (PUSDC)</label>
+                            <input type="number" id="move-amount-val" value="10">
+                        </div>
+                        <button id="btn-move-execute" style="width: 100%;" onclick="executeSend('move')">Step 1: Move
+                            Between Accounts</button>
+                    </div>
+
+                    <div id="send-step2-area" class="hidden"
+                        style="margin-top: 1rem; background: rgba(56, 189, 248, 0.1); padding: 1rem; border-radius: 0.5rem;">
+                        <div id="send-wait-msg" style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--accent);">
+                            Transaction Witnessed. Waiting for Receiver.
+                        </div>
+                        <div style="display:flex; gap:1rem;">
+                            <button id="btn-send-accept" class="outline success hidden" style="flex:1;">Accept</button>
+                            <button id="btn-send-cancel" class="outline danger" style="flex:1;">Cancel
+                                Transaction</button>
+                        </div>
+                    </div>
+
+                    <div class="status-box" id="status-send" style="margin-top: 1rem;">No recent transaction.</div>
+                </div>
+
+                <!-- Accept Flow (Incoming) -->
+                <div class="card">
+                    <h2 id="accept-title">Accept Funds</h2>
+                    <div id="accept-subaccount"
+                        style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">to subaccount 1
+                    </div>
+
+                    <div id="incoming-area">
+                        <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                            <div style="font-size: 2rem; margin-bottom: 1rem;">📥</div>
+                            <div>No incoming funds detected.</div>
+                            <div style="font-size: 0.8rem; margin-top: 0.5rem;">Incoming transactions will appear here
+                                for you to accept.</div>
+                        </div>
+                    </div>
+
+                    <div id="accept-action-area" class="hidden"
+                        style="margin-top: 1rem; background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 0.5rem; border: 1px solid rgba(34, 197, 94, 0.2);">
+                        <div id="incoming-info" style="font-size: 0.9rem; margin-bottom: 1rem; color: var(--success);">
+                            <!-- Dynamic Content -->
+                        </div>
+                        <button id="btn-accept" style="width: 100%; background-color: var(--success);">Step 2: Accept
+                            Funds</button>
+                    </div>
+
+                    <div class="status-box" id="status-accept" style="margin-top: 1rem;">Monitoring for incoming
+                        transfers...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm';
+
+        // --- Global Helpers for Tab Switching ---
+        window.switchTab = (containerId, tab) => {
+            const container = document.getElementById(containerId);
+            const sections = container.querySelectorAll('.tab-section');
+            sections.forEach(s => s.classList.add('hidden'));
+
+            container.querySelector(`#section-${tab}`).classList.remove('hidden');
+
+            const triggers = container.querySelectorAll('.tab-trigger');
+            triggers.forEach(t => {
+                if (t.getAttribute('data-tab') === tab) t.classList.add('active');
+                else t.classList.remove('active');
+            });
+        };
+
+        //const ZENTRA_API_URL = "http://127.0.0.1:8090";
+        //const NETWORK_NAME = 'cto';
+        const ZENTRA_API_URL = "https://testnet3.zentra.dev";
+        const ZEN_PROTOCOL = "zentest3";
+        const ZEN_ADDR = '0x00000000000000000000000000000000007a656e'; // hex of 'zen'
+        const NETWORK_NAME = 'base';
+        const PUSDC_API_URL = "https://pusdc-api-testnet3.zentra.dev";
+        // const PUSDC_API_URL = "";
+        const TOKEN_KEY = 'pusdc_auth_token';
+
+        let currentUser = null;
+        let currentSubaccount = "1";
+        let pendingDeposit = null;
+        let pendingWithdraw = null;
+        let pendingSend = null;
+        let pendingReceive = null;
+
+        // --- Auth Helpers ---
+        const getAuthToken = () => localStorage.getItem(TOKEN_KEY);
+        const setAuthToken = (token) => localStorage.setItem(TOKEN_KEY, token);
+        const removeAuthToken = () => localStorage.removeItem(TOKEN_KEY);
+
+        const backendFetch = async (url, options = {}) => {
+            const token = getAuthToken();
+            const headers = {
+                ...options.headers,
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            return fetch(url, { ...options, headers });
+        };
+
+        const switchNetwork = async () => {
+            const chainId = '0x14a34'; // 84532 (Base Sepolia)
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId }],
+                });
+            } catch (switchError) {
+                if (switchError.code === 4902) {
+                    await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                            chainId,
+                            chainName: 'Base Sepolia',
+                            rpcUrls: ['https://sepolia.base.org'],
+                            nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                            blockExplorerUrls: ['https://sepolia.basescan.org']
+                        }]
+                    });
+                } else {
+                    throw switchError;
+                }
+            }
+        };
+
+        const connectAndLogin = async () => {
+            if (!window.ethereum) {
+                alert("Please install MetaMask!");
+                return;
+            }
+
+            try {
+                await switchNetwork();
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const signer = await provider.getSigner();
+                const address = await signer.getAddress();
+
+                const timestamp = Math.floor(Date.now() / 1000);
+                const msg = `Login to PUSDC Gateway at ${timestamp}`;
+
+                console.log("Signing message:", msg);
+                const signature = await signer.signMessage(msg);
+
+                const response = await fetch(`${PUSDC_API_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        address,
+                        signature,
+                        timestamp: timestamp.toString()
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.token) {
+                    setAuthToken(data.token);
+                    currentUser = address.toLowerCase();
+                    showDashboard();
+                } else {
+                    alert(`Login failed: ${data.error}`);
+                }
+            } catch (err) {
+                console.error(err);
+                alert(`Error: ${err.message}`);
+            }
+        };
+
+        const logout = async () => {
+            await backendFetch(`${PUSDC_API_URL}/api/auth/logout`, {
+                method: 'POST'
+            });
+            removeAuthToken();
+            location.reload();
+        };
+
+        const showDashboard = () => {
+            document.getElementById('login-view').classList.add('hidden');
+            document.getElementById('dashboard-view').classList.remove('hidden');
+            document.getElementById('user-info').classList.remove('hidden');
+            document.getElementById('address-display').textContent = currentUser.toLowerCase();
+
+            // Initialize subaccount labels
+            const sendLabel = document.getElementById('send-subaccount-label');
+            if (sendLabel) sendLabel.textContent = `from subaccount ${currentSubaccount}`;
+            // Accept label removed as we show all incoming
+            const acceptLabel = document.getElementById('accept-subaccount');
+            if (acceptLabel) acceptLabel.style.display = 'none';
+
+            refreshData();
+            setInterval(refreshData, 5000); // Auto refresh every 5s
+        };
+
+        const refreshData = async () => {
+            // try {
+            // 1. Privacy Balance (PUSDC)
+            const balRes = await backendFetch(`${PUSDC_API_URL}/api/privacy/balance?subaccount=${currentSubaccount}`);
+            if (balRes.ok) {
+                const balData = await parseJsonWithBigInt(balRes);
+                const pusdcBalance = formatUnitsBigInt(balData.balance || "0", 6);
+                document.getElementById('balance-pusdc').textContent = pusdcBalance;
+
+                if (balData.balance_cipher) {
+                    const cipherStr = balData.balance_cipher.toString();
+                    document.getElementById('balance-cipher').textContent =
+                        `${cipherStr.substring(0, 20)}...${cipherStr.substring(cipherStr.length - 10)}`;
+                } else {
+                    document.getElementById('balance-cipher').textContent = "None";
+                }
+            }
+
+            // 2. Public Balance (USDC) from Indexer
+            if (currentUser) {
+                // try {
+                const publicRes = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-USDC-balance:${currentUser.toLowerCase()}`);
+                if (publicRes.ok) {
+                    const publicData = await parseJsonWithBigInt(publicRes);
+                    const val = publicData.result;
+                    const usdcBalance = val ? formatUnitsBigInt(val, 6) : '0.000000';
+                    document.getElementById('balance-usdc').textContent = usdcBalance;
+                }
+                // } catch (err) {
+                //     console.warn("Failed to fetch public balance:", err);
+                // }
+            }
+
+
+            // 3. Check Pending Status (Fetch for ALL subaccounts -> future backend support, currently just standard fetch)
+            // Ideally backend returns all. For now we just don't default it in UI, but keep fetching.
+            // Note: status?subaccount=... might need to change to status?all=true or similar.
+            // For now, removing subaccount param from receive check logic in frontend implies we want to see everything
+            // returned by this endpoint.
+            const statusRes = await backendFetch(`${PUSDC_API_URL}/api/privacy/status?subaccount=${currentSubaccount}`); // Keep subaccount for balance/status consistency for now, until backend is ready to filter 'all'
+            if (statusRes.ok) {
+                const statusData = JSON.parse(await statusRes.text());
+                // console.log("Status Data", statusData);
+
+                if (statusData.deposit && statusData.deposit.pending_action === 'enter') {
+                    document.getElementById('deposit-step2-area').classList.remove('hidden');
+                    document.getElementById('btn-deposit').disabled = true;
+                    document.getElementById('btn-deposit').innerText = "Pending Deposit...";
+                    pendingDeposit = statusData.deposit;
+                    document.getElementById('status-deposit').innerHTML =
+                        `<span style="color:var(--accent);">Pending Witness confirmed (Tx: ${shortHash(pendingDeposit.tx_id)})</span>`;
+                } else {
+                    document.getElementById('deposit-step2-area').classList.add('hidden');
+                    document.getElementById('btn-deposit').disabled = false;
+                    document.getElementById('btn-deposit').innerText = "Step 1: Deposit";
+                }
+
+                if (statusData.withdraw && statusData.withdraw.pending_action === 'exit') {
+                    document.getElementById('withdraw-step2-area').classList.remove('hidden');
+                    document.getElementById('btn-withdraw').disabled = true;
+                    document.getElementById('btn-withdraw').innerText = "Pending Withdraw...";
+                    pendingWithdraw = statusData.withdraw;
+                    document.getElementById('status-withdraw').innerHTML =
+                        `<span style="color:var(--accent);">Pending Witness confirmed (Tx: ${shortHash(pendingWithdraw.tx_id)})</span>`;
+                } else {
+                    document.getElementById('withdraw-step2-area').classList.add('hidden');
+                    document.getElementById('btn-withdraw').disabled = false;
+                    document.getElementById('btn-withdraw').innerText = "Step 1: Withdraw";
+                }
+
+                if (statusData.send && statusData.send.pending_action === 'wait_accept') {
+                    document.getElementById('send-step2-area').classList.remove('hidden');
+                    const btnSend = document.getElementById('btn-send-execute');
+                    const btnMove = document.getElementById('btn-move-execute');
+                    if (btnSend) {
+                        btnSend.disabled = true;
+                        btnSend.innerText = "Pending Send...";
+                    }
+                    if (btnMove) {
+                        btnMove.disabled = true;
+                        btnMove.innerText = "Pending Send...";
+                    }
+                    pendingSend = statusData.send;
+                    document.getElementById('status-send').innerHTML =
+                        `<span style="color:var(--accent);">Pending Witness confirmed (Tx: ${shortHash(pendingSend.tx_id)})</span>`;
+
+                    document.getElementById('send-wait-msg').innerHTML =
+                        `Transaction Witnessed. Waiting for Receiver.<br>
+                         <span style="font-size:0.8rem; color:var(--text-secondary);">
+                         To: ${shortHash(pendingSend.to)} (Sub: ${pendingSend.to_sub})
+                         </span>`;
+
+                    // If to self, show Accept button in Send area too
+                    const btnSendAccept = document.getElementById('btn-send-accept');
+                    if (pendingSend.to.toLowerCase() === currentUser.toLowerCase()) {
+                        btnSendAccept.classList.remove('hidden');
+                        btnSendAccept.onclick = () => {
+                            // Automatically switch subaccount to destination for accepting
+                            // Or just execute it and it will go to pendingSubaccount
+                            executeAccept(pendingSend);
+                        };
+                    } else {
+                        btnSendAccept.classList.add('hidden');
+                    }
+                } else {
+                    document.getElementById('send-step2-area').classList.add('hidden');
+                    const btnSend = document.getElementById('btn-send-execute');
+                    const btnMove = document.getElementById('btn-move-execute');
+                    if (btnSend) {
+                        btnSend.disabled = false;
+                        btnSend.innerText = "Step 1: Send to Address";
+                    }
+                    if (btnMove) {
+                        btnMove.disabled = false;
+                        btnMove.innerText = "Step 1: Move Between Accounts";
+                    }
+                }
+                // 3.4. Receive Status (For Accept Panel)
+                // 3.4. Receive Status (For Accept Panel)
+                let receives = [];
+                if (statusData.receive && Array.isArray(statusData.receive)) {
+                    // Filter for pending items (those without a response tx hash)
+                    receives = statusData.receive.filter(r => !r.response_tx_hash);
+                }
+
+                const incomingArea = document.getElementById('incoming-area');
+                const actionArea = document.getElementById('accept-action-area'); // Now used as a container for list
+
+                if (receives.length > 0) {
+                    pendingReceive = receives[0]; // For backwards compatibility if needed, but we rely on buttons now
+                    incomingArea.classList.add('hidden');
+                    actionArea.classList.remove('hidden');
+
+                    // Clear previous content
+                    actionArea.innerHTML = '';
+
+
+                    receives.forEach((rec, idx) => {
+                        const itemDiv = document.createElement('div');
+                        itemDiv.style.marginBottom = '1rem';
+                        itemDiv.style.padding = '0.5rem';
+                        itemDiv.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+
+                        itemDiv.innerHTML = `
+                             <div style="font-weight: 600; margin-bottom: 0.2rem; color: var(--success);">Incoming Transfer</div>
+                             <div style="font-size: 0.8rem; opacity: 0.8; color: var(--success);">From: ${shortHash(rec.sender)} (Sub: ${rec.from_sub})</div>
+                             <div style="font-size: 0.8rem; opacity: 0.8; color: var(--success); margin-bottom:0.5rem;">Tx: ${shortHash(rec.send_tx_hash)} (Block: ${rec.send_block_height})</div>
+                             <div style="display:flex; gap:0.5rem;">
+                                 <button class="btn-accept-item" style="flex:1; background-color: var(--success); border:none; padding:0.5rem; border-radius:0.25rem; color:white; cursor:pointer;">Accept</button>
+                                 <button class="btn-decline-item" style="flex:1; background-color: var(--danger); border:none; padding:0.5rem; border-radius:0.25rem; color:white; cursor:pointer;">Decline</button>
+                             </div>
+                        `;
+
+                        // Bind click events
+                        const btnAccept = itemDiv.querySelector('.btn-accept-item');
+                        btnAccept.onclick = () => executeAccept(rec, btnAccept);
+
+                        const btnDecline = itemDiv.querySelector('.btn-decline-item');
+                        btnDecline.onclick = () => executeDecline(rec, btnDecline);
+
+                        actionArea.appendChild(itemDiv);
+                    });
+
+                    document.getElementById('status-accept').innerHTML = `<span style="color:var(--success);">${receives.length} incoming transfer(s) available!</span>`;
+                } else {
+                    pendingReceive = null;
+                    incomingArea.classList.remove('hidden');
+                    actionArea.classList.add('hidden');
+                    actionArea.innerHTML = ''; // Clear
+                    document.getElementById('status-accept').innerHTML = `Monitoring for all incoming transfers...`;
+                }
+            }
+
+            // } catch (e) {
+            //     console.error("Refresh failed", e);
+            // }
+        };
+
+        const shortHash = (h) => {
+            if (!h) return '';
+            if (h.length < 10) return h;
+            return `${h.substring(0, 6)}...${h.substring(h.length - 4)}`;
+        };
+
+        // --- Math Helpers for Paillier ---
+        const modInverse = (a, n) => {
+            let t = 0n;
+            let newt = 1n;
+            let r = n;
+            let newr = (a % n + n) % n;
+
+            while (newr !== 0n) {
+                let q = r / newr;
+                [t, newt] = [newt, t - q * newt];
+                [r, newr] = [newr, r - q * newr];
+            }
+
+            if (r > 1n) return null;
+            if (t < 0n) t = t + n;
+            return t;
+        };
+
+        const modPow = (base, exp, mod) => {
+            if (exp === 0n) return 1n;
+            if (exp < 0n) {
+                base = modInverse(base, mod);
+                exp = -exp;
+            }
+            let res = 1n;
+            base = (base % mod + mod) % mod;
+            while (exp > 0n) {
+                if (exp % 2n === 1n) res = (res * base) % mod;
+                base = (base * base) % mod;
+                exp = exp / 2n;
+            }
+            return res;
+        };
+
+        const getGcd = (a, b) => {
+            while (b !== 0n) {
+                a %= b;
+                [a, b] = [b, a];
+            }
+            return a;
+        };
+
+        const encryptPaillier = (n, m) => {
+            const g = n + 1n;
+            const n2 = n * n;
+
+            const c1 = modPow(g, m, n2);
+
+            let r;
+            const nLen = n.toString(16).length;
+            const buff = new Uint8Array(Math.ceil(nLen / 2) + 1);
+            do {
+                window.crypto.getRandomValues(buff);
+                r = BigInt('0x' + Array.from(buff).map(b => b.toString(16).padStart(2, '0')).join('')) % n;
+            } while (r <= 0n || getGcd(r, n) !== 1n);
+
+            const c2 = modPow(r, n, n2);
+            return (c1 * c2) % n2;
+        };
+
+        const formatUnitsBigInt = (value, decimals) => {
+            let s = BigInt(value).toString();
+            if (decimals === 0) return s;
+            const negative = s.startsWith("-");
+            if (negative) s = s.slice(1);
+            while (s.length <= decimals) s = "0" + s;
+            const intPart = s.slice(0, -decimals) || "0";
+            const fracPart = s.slice(-decimals);
+            return (negative ? "-" : "") + intPart + "." + fracPart;
+        };
+
+        const parseJsonWithBigInt = async (response) => {
+            const text = await response.text();
+            // console.log("Response Text", text);
+            const fixedText = text.replace(/([\[,:]\s*)(\d{16,})/g, '$1"$2"');
+            return JSON.parse(fixedText, (key, value) => {
+                if (typeof value === 'string' && /^\d{16,}$/.test(value)) {
+                    return BigInt(value);
+                }
+                return value;
+            });
+        };
+
+        const executeDeposit = async () => {
+            // try {
+            const btn = document.getElementById('btn-deposit');
+            btn.disabled = true;
+            btn.innerText = "Encrypting...";
+
+            const amtInput = document.getElementById('deposit-amount').value;
+            const amt = BigInt(ethers.parseUnits(amtInput, 6).toString());
+
+            // Step 1: Fetch Paillier Pub (n) from Indexer
+            const nRes = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_pub`);
+            if (!nRes.ok) throw new Error("Failed to fetch Paillier N from Indexer");
+            const nData = await parseJsonWithBigInt(nRes);
+            if (!nData.result) throw new Error("Paillier N (public key) not found in Indexer");
+
+            console.log("Paillier N", nData.result);
+            const n = BigInt(nData.result);
+            const cipher = encryptPaillier(n, amt);
+
+            // Step 2: Switch to Base Sepolia
+            btn.innerText = "Switching Network...";
+            await switchNetwork();
+
+            // Step 3: Send Transaction via MetaMask (JSON encoded in calldata)
+            btn.innerText = "Waiting for MetaMask...";
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+
+            const payload = {
+                p: ZEN_PROTOCOL, // Protocol name from notes.md
+                f: "privacy_deposit",
+                a: ["PUSDC", amt.toString(), cipher.toString()]
+            };
+            const callPayload = JSON.stringify(payload);
+
+            const tx = await signer.sendTransaction({
+                to: ZEN_ADDR,
+                data: ethers.hexlify(ethers.toUtf8Bytes(callPayload))
+            });
+
+            document.getElementById('status-deposit').innerHTML =
+                `<span style="color:var(--accent);">Transaction Sent: ${shortHash(tx.hash)}</span><br>Waiting for confirmation...`;
+
+            const receipt = await tx.wait();
+
+            document.getElementById('status-deposit').innerHTML =
+                `<span style="color:var(--success);">Deposit Confirmed!</span><br>Tx: ${shortHash(receipt.hash)}`;
+
+            setTimeout(refreshData, 2000);
+            // } catch (err) {
+            //     console.error(err);
+            //     alert(`Deposit failed: ${err.message}`);
+            //     document.getElementById('status-deposit').innerHTML = `<span style="color:var(--danger);">Error: ${err.message}</span>`;
+            // } finally {
+            //     const btn = document.getElementById('btn-deposit');
+            //     btn.disabled = false;
+            //     btn.innerText = "Step 1: Deposit";
+            // }
+        };
+
+        const executeDepositCancel = async () => {
+            if (!pendingDeposit) return;
+            try {
+                const btn = document.getElementById('btn-deposit-cancel');
+                btn.disabled = true;
+                btn.innerText = "Waiting for MetaMask...";
+
+                await switchNetwork();
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const signer = await provider.getSigner();
+
+                const payload = {
+                    p: ZEN_PROTOCOL,
+                    f: "privacy_deposit_cancel",
+                    a: ["PUSDC"]
+                };
+                const tx = await signer.sendTransaction({
+                    to: ZEN_ADDR,
+                    data: ethers.hexlify(ethers.toUtf8Bytes(JSON.stringify(payload)))
+                });
+
+                document.getElementById('status-deposit').innerHTML = `<span style="color:var(--accent);">Cancel Sent: ${shortHash(tx.hash)}</span>`;
+                await tx.wait();
+
+                document.getElementById('deposit-step2-area').classList.add('hidden');
+                document.getElementById('status-deposit').innerHTML = `<span style="color:var(--danger);">Deposit Cancelled.</span>`;
+                pendingDeposit = null;
+                document.getElementById('btn-deposit').disabled = false;
+                document.getElementById('btn-deposit').innerText = "Step 1: Deposit";
+                setTimeout(refreshData, 1000);
+            } catch (err) {
+                console.error(err);
+                alert(`Cancel failed: ${err.message}`);
+            } finally {
+                const btn = document.getElementById('btn-deposit-cancel');
+                btn.disabled = false;
+                btn.innerText = "Cancel";
+            }
+        };
+
+        const executeEnter = async () => {
+            if (!pendingDeposit) return alert("No pending deposit to key in.");
+            try {
+                const btn = document.getElementById('btn-enter');
+                btn.disabled = true;
+                btn.innerText = "Waiting for MetaMask...";
+
+                await switchNetwork();
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const signer = await provider.getSigner();
+
+                const payload = {
+                    p: ZEN_PROTOCOL,
+                    f: "privacy_enter",
+                    a: ["PUSDC", pendingDeposit.tx_id, pendingDeposit.signature]
+                };
+                const tx = await signer.sendTransaction({
+                    to: ZEN_ADDR,
+                    data: ethers.hexlify(ethers.toUtf8Bytes(JSON.stringify(payload)))
+                });
+
+                document.getElementById('status-deposit').innerHTML = `<span style="color:var(--accent);">Enter Sent: ${shortHash(tx.hash)}</span>`;
+                await tx.wait();
+
+                document.getElementById('deposit-step2-area').classList.add('hidden');
+                document.getElementById('status-deposit').innerHTML =
+                    `<span style="color:var(--success);">Deposit & Enter Completed!</span><br>Enter Tx: ${shortHash(tx.hash)}`;
+                pendingDeposit = null;
+                setTimeout(refreshData, 1000);
+            } catch (err) {
+                console.error(err);
+                alert(`Enter failed: ${err.message}`);
+            } finally {
+                const btn = document.getElementById('btn-enter');
+                btn.disabled = false;
+                btn.innerText = "Step 2: Execute Enter";
+            }
+        };
+
+        window.executeSend = async (mode = 'send') => {
+            try {
+                let btnId = (mode === 'send') ? 'btn-send-execute' : 'btn-move-execute';
+                const btn = document.getElementById(btnId);
+                btn.disabled = true;
+                btn.innerText = "Encrypting...";
+
+                let to, sub, amtInput;
+                if (mode === 'send') {
+                    to = document.getElementById('send-to-addr').value.trim();
+                    sub = "1"; // User specified: Send recipient subaccount is 1
+                    amtInput = document.getElementById('send-amount-val').value;
+                } else {
+                    to = currentUser.toLowerCase(); // Move is to self
+                    sub = document.getElementById('move-to-subaccount').value;
+                    amtInput = document.getElementById('move-amount-val').value;
+                }
+
+                if (!to || !amtInput) {
+                    alert("Please fill in all fields.");
+                    btn.disabled = false;
+                    btn.innerText = (mode === 'send') ? "Step 1: Send to Address" : "Step 1: Move Between Accounts";
+                    return;
+                }
+
+                const amt = BigInt(ethers.parseUnits(amtInput, 6).toString());
+
+                // Get N
+                const nRes = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_pub`);
+                const nData = await parseJsonWithBigInt(nRes);
+                const n = BigInt(nData.result);
+                const cipher = encryptPaillier(n, amt);
+
+                btn.innerText = "Waiting for MetaMask...";
+                await switchNetwork();
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const signer = await provider.getSigner();
+
+                const payload = {
+                    p: ZEN_PROTOCOL,
+                    f: "privacy_send",
+                    a: ["PUSDC", parseInt(currentSubaccount), to, parseInt(sub), cipher.toString()]
+                };
+                const tx = await signer.sendTransaction({
+                    to: ZEN_ADDR,
+                    data: ethers.hexlify(ethers.toUtf8Bytes(JSON.stringify(payload)))
+                });
+
+                document.getElementById('status-send').innerHTML = `<span style="color:var(--accent);">${mode === 'send' ? 'Send' : 'Move'} Sent: ${shortHash(tx.hash)}</span>`;
+                await tx.wait();
+
+                document.getElementById('status-send').innerHTML = `<span style="color:var(--success);">${mode === 'send' ? 'Send' : 'Move'} Confirmed!</span><br><span style="color:var(--accent);">Pending Witness...</span>`;
+                setTimeout(refreshData, 2000);
+            } catch (err) {
+                console.error(err);
+                alert(`${mode === 'send' ? 'Send' : 'Move'} failed: ${err.message}`);
+            } finally {
+                const btn = document.getElementById(mode === 'send' ? 'btn-send-execute' : 'btn-move-execute');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = (mode === 'send') ? "Step 1: Send to Address" : "Step 1: Move Between Accounts";
+                }
+            }
+        };
+
+        const executeSendCancel = async () => {
+            if (!pendingSend) return;
+            try {
+                const btn = document.getElementById('btn-send-cancel');
+                btn.disabled = true;
+                btn.innerText = "Waiting for MetaMask...";
+
+                await switchNetwork();
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const signer = await provider.getSigner();
+
+                const payload = {
+                    p: ZEN_PROTOCOL,
+                    f: "privacy_send_cancel",
+                    a: ["PUSDC", parseInt(pendingSend.from_sub)]
+                };
+                const tx = await signer.sendTransaction({
+                    to: ZEN_ADDR,
+                    data: ethers.hexlify(ethers.toUtf8Bytes(JSON.stringify(payload)))
+                });
+
+                await tx.wait();
+                document.getElementById('send-step2-area').classList.add('hidden');
+                document.getElementById('status-send').innerHTML = `<span style="color:var(--danger);">Send Cancelled.</span>`;
+                pendingSend = null;
+                const bSe = document.getElementById('btn-send-execute');
+                const bMe = document.getElementById('btn-move-execute');
+                if (bSe) bSe.disabled = false;
+                if (bMe) bMe.disabled = false;
+                setTimeout(refreshData, 1000);
+            } catch (err) {
+                console.error(err);
+                alert(`Cancel failed: ${err.message}`);
+            } finally {
+                const btn = document.getElementById('btn-send-cancel');
+                btn.disabled = false;
+                btn.innerText = "Cancel";
+            }
+        };
+
+        const executeAccept = async (forcedPending, btnElement) => {
+            const pRec = forcedPending || pendingReceive || pendingSend;
+            if (!pRec) return alert("No pending transfer to accept.");
+
+            // Map DB fields if necessary
+            // DB: sender, transaction_id
+            // Payload needs: from_addr, from_sub, signature, to_sub, tx_id
+            // If strictly local DB item, we might be missing subaccount and signature!
+            // Assuming defaults or mapped values:
+            const fromAddr = pRec.from_addr || pRec.sender;
+            const txId = pRec.tx_id || pRec.transaction_id.toString();
+            const fromSub = pRec.from_sub || "1"; // Default to 1 if missing in DB
+            const sig = pRec.signature || "0x"; // Missing in DB
+
+            try {
+                if (btnElement) {
+                    btnElement.disabled = true;
+                    btnElement.innerText = "Processing...";
+                } else {
+                    const btn = document.getElementById('btn-accept');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.innerText = "Waiting for MetaMask...";
+                    }
+                }
+
+                await switchNetwork();
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const signer = await provider.getSigner();
+
+                // Use the pRec from the top of the function
+                const payload = {
+                    p: ZEN_PROTOCOL,
+                    f: "privacy_accept",
+                    a: [
+                        "PUSDC",
+                        fromAddr,
+                        parseInt(fromSub),
+                        sig,
+                        parseInt(pRec.to_sub || currentSubaccount),
+                        txId
+                    ]
+                };
+                console.log(payload);
+                const tx = await signer.sendTransaction({
+                    to: ZEN_ADDR,
+                    data: ethers.hexlify(ethers.toUtf8Bytes(JSON.stringify(payload)))
+                });
+
+                document.getElementById('status-accept').innerHTML = `<span style="color:var(--accent);">Accept Sent: ${shortHash(tx.hash)}</span>`;
+                await tx.wait();
+
+                document.getElementById('accept-action-area').classList.add('hidden');
+                document.getElementById('status-accept').innerHTML =
+                    `<span style="color:var(--success);">Funds Accepted!</span><br>Accept Tx: ${shortHash(tx.hash)}`;
+                pendingReceive = null;
+                setTimeout(refreshData, 1000);
+            } catch (err) {
+                console.error(err);
+                alert(`Accept failed: ${err.message}`);
+            } finally {
+                if (btnElement) {
+                    btnElement.disabled = false;
+                    btnElement.innerText = "Accept Transfer";
+                } else {
+                    const btn = document.getElementById('btn-accept');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerText = "Step 2: Approve (Accept)";
+                    }
+                }
+            }
+        };
+
+        const executeDecline = async (forcedPending, btnElement) => {
+            const pRec = forcedPending || pendingReceive;
+            if (!pRec) return alert("No pending transfer to decline.");
+
+            const fromAddr = pRec.from_addr || pRec.sender;
+            const fromSub = pRec.from_sub || "1";
+
+            try {
+                if (btnElement) {
+                    btnElement.disabled = true;
+                    btnElement.innerText = "Processing...";
+                }
+
+                await switchNetwork();
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const signer = await provider.getSigner();
+
+                const payload = {
+                    p: ZEN_PROTOCOL,
+                    f: "privacy_decline",
+                    a: [
+                        "PUSDC",
+                        fromAddr,
+                        parseInt(fromSub)
+                    ]
+                };
+
+                const tx = await signer.sendTransaction({
+                    to: ZEN_ADDR,
+                    data: ethers.hexlify(ethers.toUtf8Bytes(JSON.stringify(payload)))
+                });
+
+                document.getElementById('status-accept').innerHTML = `<span style="color:var(--accent);">Decline Sent: ${shortHash(tx.hash)}</span>`;
+                await tx.wait();
+
+                document.getElementById('status-accept').innerHTML =
+                    `<span style="color:var(--danger);">Transfer Declined!</span><br>Tx: ${shortHash(tx.hash)}`;
+
+                setTimeout(refreshData, 1000);
+            } catch (err) {
+                console.error(err);
+                alert(`Decline failed: ${err.message}`);
+            } finally {
+                if (btnElement) {
+                    btnElement.disabled = false;
+                    btnElement.innerText = "Decline";
+                }
+            }
+        };
+
+        const executeWithdraw = async () => {
+            try {
+                const btn = document.getElementById('btn-withdraw');
+                btn.disabled = true;
+                btn.innerText = "Processing...";
+
+                const to = currentUser.toLowerCase();
+                const amtInput = document.getElementById('withdraw-amount').value;
+                const amt = BigInt(ethers.parseUnits(amtInput, 6).toString());
+
+                // Get N
+                const nRes = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_pub`);
+                const nData = await parseJsonWithBigInt(nRes);
+                const n = BigInt(nData.result);
+                const cipher = encryptPaillier(n, amt);
+
+                await switchNetwork();
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const signer = await provider.getSigner();
+
+                const payload = {
+                    p: ZEN_PROTOCOL,
+                    f: "privacy_withdraw",
+                    a: ["PUSDC", amt.toString(), cipher.toString()]
+                };
+                const tx = await signer.sendTransaction({
+                    to: ZEN_ADDR,
+                    data: ethers.hexlify(ethers.toUtf8Bytes(JSON.stringify(payload)))
+                });
+
+                document.getElementById('status-withdraw').innerHTML = `<span style="color:var(--accent);">Withdraw Sent: ${shortHash(tx.hash)}</span>`;
+                await tx.wait();
+
+                document.getElementById('status-withdraw').innerHTML = `<span style="color:var(--success);">Withdraw Confirmed!</span><br><span style="color:var(--accent);">Pending Witness...</span>`;
+                setTimeout(refreshData, 2000);
+            } catch (err) {
+                console.error(err);
+                alert(`Withdraw failed: ${err.message}`);
+            } finally {
+                const btn = document.getElementById('btn-withdraw');
+                btn.disabled = false;
+                btn.innerText = "Step 1: Withdraw";
+            }
+        };
+
+        const executeWithdrawCancel = async () => {
+            if (!pendingWithdraw) return;
+            try {
+                const btn = document.getElementById('btn-withdraw-cancel');
+                btn.disabled = true;
+                btn.innerText = "Waiting for MetaMask...";
+
+                await switchNetwork();
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const signer = await provider.getSigner();
+
+                const payload = {
+                    p: ZEN_PROTOCOL,
+                    f: "privacy_withdraw_cancel",
+                    a: ["PUSDC"]
+                };
+                const tx = await signer.sendTransaction({
+                    to: ZEN_ADDR,
+                    data: ethers.hexlify(ethers.toUtf8Bytes(JSON.stringify(payload)))
+                });
+
+                await tx.wait();
+                document.getElementById('withdraw-step2-area').classList.add('hidden');
+                document.getElementById('status-withdraw').innerHTML = `<span style="color:var(--danger);">Withdraw Cancelled.</span>`;
+                pendingWithdraw = null;
+                document.getElementById('btn-withdraw').disabled = false;
+                setTimeout(refreshData, 1000);
+            } catch (err) {
+                console.error(err);
+                alert(`Cancel failed: ${err.message}`);
+            } finally {
+                const btn = document.getElementById('btn-withdraw-cancel');
+                btn.disabled = false;
+                btn.innerText = "Cancel";
+            }
+        };
+
+        const executeExit = async () => {
+            if (!pendingWithdraw) return alert("No pending withdraw to exit.");
+            try {
+                const btn = document.getElementById('btn-exit');
+                btn.disabled = true;
+                btn.innerText = "Waiting for MetaMask...";
+
+                await switchNetwork();
+                const provider = new ethers.BrowserProvider(window.ethereum);
+                const signer = await provider.getSigner();
+
+                const payload = {
+                    p: ZEN_PROTOCOL,
+                    f: "privacy_exit",
+                    a: ["PUSDC", pendingWithdraw.tx_id, pendingWithdraw.signature]
+                };
+                const tx = await signer.sendTransaction({
+                    to: ZEN_ADDR,
+                    data: ethers.hexlify(ethers.toUtf8Bytes(JSON.stringify(payload)))
+                });
+
+                document.getElementById('status-withdraw').innerHTML = `<span style="color:var(--accent);">Exit Sent: ${shortHash(tx.hash)}</span>`;
+                await tx.wait();
+
+                document.getElementById('withdraw-step2-area').classList.add('hidden');
+                document.getElementById('status-withdraw').innerHTML =
+                    `<span style="color:var(--success);">Withdraw & Exit Completed!</span><br>Exit Tx: ${shortHash(tx.hash)}`;
+                pendingWithdraw = null;
+                setTimeout(refreshData, 1000);
+            } catch (err) {
+                console.error(err);
+                alert(`Exit failed: ${err.message}`);
+            } finally {
+                const btn = document.getElementById('btn-exit');
+                btn.disabled = false;
+                btn.innerText = "Step 2: Execute Exit";
+            }
+        };
+
+
+        const callSimulation = async (endpoint, body, btnId, statusBoxId) => {
+            try {
+                const btn = document.getElementById(btnId);
+                btn.disabled = true;
+                btn.innerText = "Processing...";
+
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await parseJsonWithBigInt(res);
+
+                if (res.ok) {
+                    let stepLabel = "Tx";
+                    if (endpoint.includes("deposit")) stepLabel = "Deposit";
+                    else if (endpoint.includes("send")) stepLabel = "Send";
+                    else if (endpoint.includes("withdraw")) stepLabel = "Withdraw";
+                    else if (endpoint.includes("enter")) stepLabel = "Enter";
+                    else if (endpoint.includes("accept")) stepLabel = "Accept";
+                    else if (endpoint.includes("exit")) stepLabel = "Exit";
+
+                    if (document.getElementById(statusBoxId)) {
+                        document.getElementById(statusBoxId).innerHTML =
+                            `Last ${stepLabel}: Success<br>Tx: ${shortHash(data.tx_hash)}`;
+                    }
+                    setTimeout(refreshData, 1000);
+                    return data;
+                } else {
+                    alert(`Simulation failed: ${data.error}`);
+                    return null;
+                }
+            } catch (e) {
+                alert(`Error: ${e.message}`);
+                return null;
+            } finally {
+                const btn = document.getElementById(btnId);
+                btn.disabled = false;
+                if (btn.innerText === "Processing...") {
+                    if (btnId.includes('deposit')) btn.innerText = "Step 1: Deposit";
+                    if (btnId.includes('enter')) btn.innerText = "Step 2: Execute Enter";
+                    if (btnId.includes('send')) btn.innerText = "Step 1: Send";
+                    if (btnId.includes('accept')) btn.innerText = "Step 2: Approve (Accept)";
+                    if (btnId.includes('withdraw')) btn.innerText = "Step 1: Withdraw";
+                    if (btnId.includes('exit')) btn.innerText = "Step 2: Execute Exit";
+                }
+            }
+        };
+
+        // Event Listeners
+        document.getElementById('btn-login').addEventListener('click', connectAndLogin);
+        document.getElementById('btn-logout').addEventListener('click', logout);
+        document.getElementById('btn-refresh').addEventListener('click', refreshData);
+        document.getElementById('btn-deposit').addEventListener('click', executeDeposit);
+        document.getElementById('btn-deposit-cancel').addEventListener('click', executeDepositCancel);
+        document.getElementById('btn-enter').addEventListener('click', executeEnter);
+        document.getElementById('btn-send-cancel').addEventListener('click', executeSendCancel);
+        document.getElementById('btn-accept').addEventListener('click', executeAccept);
+        document.getElementById('btn-withdraw').addEventListener('click', executeWithdraw);
+        document.getElementById('btn-withdraw-cancel').addEventListener('click', executeWithdrawCancel);
+        document.getElementById('btn-exit').addEventListener('click', executeExit);
+
+        document.getElementById('subaccount-select').addEventListener('change', (e) => {
+            currentSubaccount = e.target.value;
+            // Update labels across cards
+            const sendLabel = document.getElementById('send-subaccount-label');
+            if (sendLabel) sendLabel.textContent = `from subaccount ${currentSubaccount}`;
+
+            // Accept label logic removed
+            // const acceptLabel = document.getElementById('accept-subaccount');
+            // if (acceptLabel) acceptLabel.textContent = `to subaccount ${currentSubaccount}`;
+
+            refreshData();
+        });
+
+        // Check login status
+        backendFetch(`${PUSDC_API_URL}/api/auth/status`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.is_logged_in && data.address) {
+                    currentUser = data.address.toLowerCase();
+                    showDashboard();
+                }
+            })
+            .catch(err => console.log("Not logged in"));
+    </script>
+</body>
+
+</html>

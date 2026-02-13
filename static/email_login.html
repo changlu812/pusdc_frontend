@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PUSDC | Email Login</title>
+    <meta
+      name="description"
+      content="Login to PUSDC Privacy Protocol using your email."
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+        <link rel="stylesheet" href="css/pages/email_login.css">
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="card" id="loginCard">
+        <div class="header">
+          <div class="logo-sphere">
+            <svg
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+              ></path>
+            </svg>
+          </div>
+          <h1>Welcome Back</h1>
+          <p>
+            Enter your email to receive a secure login link. No password
+            required.
+          </p>
+        </div>
+
+        <div id="loginForm">
+          <div class="input-group">
+            <label class="input-label" for="email">Email Address</label>
+            <div class="input-wrapper">
+              <input
+                type="email"
+                id="email"
+                placeholder="name@example.com"
+                autocomplete="email"
+              />
+            </div>
+          </div>
+
+          <button id="sendBtn" class="btn btn-primary">Send Login Link</button>
+
+          <div id="status"></div>
+
+          <div class="footer-links">
+            <a href="index.html">← Back to Wallet Login</a>
+          </div>
+        </div>
+
+        <!-- Success State -->
+        <div id="successState" class="success-view">
+          <div class="success-icon">
+            <svg
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                d="M5 13l4 4L19 7"
+              ></path>
+            </svg>
+          </div>
+          <h1>Check Your Email</h1>
+          <p id="successMessage">
+            We've sent a magic link to your inbox. Click the link to log in
+            securely.
+          </p>
+          <div class="footer-links" style="margin-top: 32px">
+            <button
+              id="resendBtn"
+              class="btn"
+              style="
+                background: transparent;
+                border: 1px solid var(--border);
+                color: var(--text-dim);
+                padding: 12px;
+              "
+            >
+              Didn't receive it? Resend
+            </button>
+            <a
+              href="#"
+              onclick="location.reload()"
+              style="display: block; margin-top: 16px"
+              >Try another email</a
+            >
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/common/email_common.js"></script>
+    <script src="js/pages/email_login.js"></script>
+  </body>
+</html>
+
+
