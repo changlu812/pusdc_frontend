@@ -9,4 +9,4 @@ To run the frontend
 Then visit http://127.0.0.1:8000. Keep it simple for end users!
 
 
-**Important**: the Pull Request with js framework or nodejs dependency will be reject.
+**Important**: the Pull Request with js framework or nodejs dependency will be rejected.
