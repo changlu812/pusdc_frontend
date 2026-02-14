@@ -75,6 +75,7 @@ async function connect() {
     bridgeUI.style.display = 'block';
     updateNavBtn(true);
     updateBalance();
+    fetchOutgoingFunds();
   } catch (err) {
     console.error(err);
     showStatus("Connection failed: " + err.message, "error");
@@ -167,6 +168,7 @@ async function handleAction() {
   // setUIState(true);
   setBtnLoading(false);
   updateBalance();
+  fetchOutgoingFunds();
   // } catch (err) {
   //   console.error(err);
   //   showStatus(err.message || "Transfer failed", "error");
