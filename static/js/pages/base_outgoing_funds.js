@@ -73,7 +73,7 @@ async function connect() {
 
     connectBtn.style.display = 'none';
     bridgeUI.style.display = 'block';
-    updateNavBtn(true);
+    updateNavBtn(true, account);
     updateBalance();
     fetchOutgoingFunds();
   } catch (err) {
@@ -292,7 +292,7 @@ async function checkLoginStatus() {
       connectBtn.style.display = 'none';
       bridgeUI.style.display = 'block';
       showStatus("Restored Session", "success");
-      updateNavBtn(true);
+      updateNavBtn(true, account);
       updateBalance();
       fetchOutgoingFunds();
     }

@@ -67,10 +67,15 @@ export const authenticatedFetch = async (url, options = {}) => {
 };
 
 // 统一更新导航按钮文案和登录状态标记。
-export const updateNavBtn = (isLoggedIn) => {
+export const updateNavBtn = (isLoggedIn, address = null) => {
   const btn = document.getElementById("navActionBtn");
   if (btn) {
-    btn.innerText = isLoggedIn ? "Switch Account" : "Connect Wallet";
+    if (isLoggedIn && address) {
+      const shortAddr = address.slice(0, 6) + "..." + address.slice(-4);
+      btn.innerText = shortAddr;
+    } else {
+      btn.innerText = isLoggedIn ? "Switch Account" : "Connect Wallet";
+    }
     btn.dataset.loggedIn = isLoggedIn ? "true" : "false";
   }
 };
