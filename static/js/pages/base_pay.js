@@ -95,37 +95,35 @@ async function connect() {
 }
 
 async function updateBalance() {
-  // try {
-  // Wallet Balance
-  const bal = await usdcContract.balanceOf(account);
-  balanceEl.innerText = `${ethers.formatUnits(bal, decimals)} USDC`;
+  try {
+    // Wallet Balance
+    const bal = await usdcContract.balanceOf(account);
+    balanceEl.innerText = `${ethers.formatUnits(bal, decimals)} USDC`;
 
-  // Hidden Balance
-  // const privacyBalCipher = await liteContract.privacyBalances(account);
-  // if (!privacyBalCipher || privacyBalCipher === '0x') {
-  //   document.getElementById('privacyBalance').innerText = '0.00 PUSDC';
-  //   return;
-  // }
+    // Hidden Balance
+    const privacyBalCipher = await liteContract.privacyBalances(account);
+    const privacyBalanceEl = document.getElementById('privacyBalance');
+    if (privacyBalanceEl) {
+      if (!privacyBalCipher || privacyBalCipher === '0x') {
+        privacyBalanceEl.innerText = '0.00 PUSDC';
+      } else {
+        const resp = await authenticatedFetch(`${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`);
+        const data = await resp.json();
+        if (data.status === 'ok') {
+          privacyBalanceEl.innerText = `${ethers.formatUnits(data.balance.toString(), decimals)} PUSDC`;
+        }
+      }
+    }
 
-  // const resp = await authenticatedFetch(`${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`);
-  // const data = await resp.json();
-  // if (data.status === 'ok') {
-  //   document.getElementById('privacyBalance').innerText = `${ethers.formatUnits(data.balance.toString(), decimals)} PUSDC`;
-  // }
-
-  // Claimable USDC
-  const inboxBalance = await inboxContract.inboxBalances(account);
-  console.log(inboxBalance);
-  console.log(decimals);
-  // if (!inboxBalance || inboxBalance === '0x') {
-  //   document.getElementById('inboxBalance').innerText = '0.00 PUSDC';
-  //   return;
-  // }
-
-  document.getElementById('inboxBalance').innerText = `${ethers.formatUnits(inboxBalance.toString(), decimals)} USDC`;
-  // } catch (err) {
-  //   console.error("Error updating balances:", err);
-  // }
+    // Claimable USDC
+    const inboxBalanceValue = await inboxContract.inboxBalances(account);
+    const inboxBalanceEl = document.getElementById('claimableBalance');
+    if (inboxBalanceEl) {
+      inboxBalanceEl.innerText = `${ethers.formatUnits(inboxBalanceValue.toString(), decimals)} USDC`;
+    }
+  } catch (err) {
+    console.error("Error updating balances:", err);
+  }
 }
 
 async function checkAllowance() {

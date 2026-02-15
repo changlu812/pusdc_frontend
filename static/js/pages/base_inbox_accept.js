@@ -19,7 +19,7 @@ const actionBtn = document.getElementById('actionBtn');
 const amountInput = document.getElementById('amount');
 const statusEl = document.getElementById('status');
 const balanceEl = document.getElementById('usdcBalance');
-const inboxBalanceEl = document.getElementById('inboxBalance');
+const inboxBalanceEl = document.getElementById('claimableBalance');
 
 
 async function connect() {
@@ -108,21 +108,35 @@ async function updateBalance() {
 
     if (account) {
       // Wallet Balance
-      const bal = await usdcContract.balanceOf(account);
-      balanceEl.innerText = `${ethers.formatUnits(bal, decimals)} USDC`;
+      try {
+        const bal = await usdcContract.balanceOf(account);
+        if (balanceEl) balanceEl.innerText = `${ethers.formatUnits(bal, decimals)} USDC`;
+      } catch (e) { console.error("Error fetching wallet balance:", e); }
 
-      // Claimable USDC
-      const inboxBalance = await inboxContract.inboxBalances(account);
-      inboxBalanceEl.innerText = `${ethers.formatUnits(inboxBalance.toString(), decimals)} USDC`;
+      // Claimable Balance
+      try {
+        const inboxBalance = await inboxContract.inboxBalances(account);
+        if (inboxBalanceEl) inboxBalanceEl.innerText = `${ethers.formatUnits(inboxBalance.toString(), decimals)} USDC`;
+      } catch (e) { console.error("Error fetching claimable balance:", e); }
 
-      // Private Balance
-      const privacyBalCipher = await liteContract.privacyBalances(account);
-      if (!privacyBalCipher || privacyBalCipher === '0x') {
-        document.getElementById('privacyBalance').innerText = '0.00 PUSDC';
-      } else {
-        // Attempt to decrypt if possible, or just show cipher
-        document.getElementById('privacyBalance').innerText = '(Encrypted)';
-      }
+      // Hidden Balance
+      try {
+        const privacyBalCipher = await liteContract.privacyBalances(account);
+        const privacyBalanceEl = document.getElementById('privacyBalance');
+        if (privacyBalanceEl) {
+          if (!privacyBalCipher || privacyBalCipher === '0x') {
+            privacyBalanceEl.innerText = '0.00 PUSDC';
+          } else {
+            const resp = await authenticatedFetch(`${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`);
+            const data = await resp.json();
+            if (data.status === 'ok') {
+              privacyBalanceEl.innerText = `${ethers.formatUnits(data.balance.toString(), decimals)} PUSDC`;
+            } else {
+              privacyBalanceEl.innerText = '(Encrypted)';
+            }
+          }
+        }
+      } catch (e) { console.error("Error fetching hidden balance:", e); }
     }
   } catch (err) {
     console.error("Error updating details:", err);

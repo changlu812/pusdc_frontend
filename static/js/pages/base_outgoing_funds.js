@@ -2,13 +2,13 @@
 // Keep page-specific bootstrap logic here; move shared helpers to static/js/common/.
 
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm';
-import { LITE_API, LITE_ADDR, USDC_ADDR, ERC20_ABI, LITE_ABI, getAuthToken, setAuthToken, authenticatedFetch, updateNavBtn, switchNetwork } from '../common/base_common.js';
+import { LITE_API, LITE_ADDR, USDC_ADDR, INBOX_ADDR, ERC20_ABI, LITE_ABI, INBOX_ABI, getAuthToken, setAuthToken, authenticatedFetch, updateNavBtn, switchNetwork } from '../common/base_common.js';
 // 公共逻辑来自 base_common：统一配置、鉴权请求、网络切换、导航按钮状态。
 // 当前文件保留页面专属流程，便于后续继续拆分到更细的业务模块。
 
 
 let provider, signer, account;
-let usdcContract, liteContract;
+let usdcContract, liteContract, inboxContract;
 let decimals = 6;
 
 
@@ -63,6 +63,7 @@ async function connect() {
 
     usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
     liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
+    inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
 
     try {
       decimals = await usdcContract.decimals();
@@ -92,13 +93,19 @@ async function updateBalance() {
     const privacyBalCipher = await liteContract.privacyBalances(account);
     if (!privacyBalCipher || privacyBalCipher === '0x') {
       document.getElementById('privacyBalance').innerText = '0.00 PUSDC';
-      return;
+    } else {
+      const resp = await authenticatedFetch(`${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`);
+      const data = await resp.json();
+      if (data.status === 'ok') {
+        document.getElementById('privacyBalance').innerText = `${ethers.formatUnits(data.balance.toString(), decimals)} PUSDC`;
+      }
     }
 
-    const resp = await authenticatedFetch(`${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`);
-    const data = await resp.json();
-    if (data.status === 'ok') {
-      document.getElementById('privacyBalance').innerText = `${ethers.formatUnits(data.balance.toString(), decimals)} PUSDC`;
+    // Claimable Balance
+    const inboxBalance = await inboxContract.inboxBalances(account);
+    const claimableBalanceEl = document.getElementById('claimableBalance');
+    if (claimableBalanceEl) {
+      claimableBalanceEl.innerText = `${ethers.formatUnits(inboxBalance.toString(), decimals)} USDC`;
     }
   } catch (err) {
     console.error("Error updating balances:", err);
@@ -286,6 +293,7 @@ async function checkLoginStatus() {
 
       usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
       liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
+      inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
 
       try { decimals = await usdcContract.decimals(); } catch (e) { decimals = 6; }
 
