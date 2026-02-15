@@ -106,7 +106,7 @@ async function updateBalance() {
     const bal = await usdcContract.balanceOf(account);
     balanceEl.innerText = `${ethers.formatUnits(bal, decimals)} USDC`;
 
-    // Inbox Balance
+    // Claimable USDC
     const inboxBalance = await inboxContract.inboxBalances(account);
     inboxBalanceEl.innerText = `${ethers.formatUnits(inboxBalance.toString(), decimals)} USDC`;
   } catch (err) {

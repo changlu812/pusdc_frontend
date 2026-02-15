@@ -95,11 +95,11 @@ async function connect() {
 
 async function updateBalance() {
   try {
-    // USDC
+    // Wallet
     const bal = await usdcContract.balanceOf(account);
     balanceEl.innerText = `${ethers.formatUnits(bal, decimals)} USDC`;
 
-    // Privacy
+    // Private
     const privacyBalCipher = await liteContract.privacyBalances(account);
     if (!privacyBalCipher || privacyBalCipher === "0x") {
       document.getElementById("privacyBalance").innerText = "0.00 PUSDC";

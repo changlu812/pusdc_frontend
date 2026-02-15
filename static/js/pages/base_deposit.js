@@ -108,7 +108,7 @@ async function connect() {
 async function updateBalance() {
   // 分开处理 USDC 和 Privacy 余额，避免一个失败影响另一个
 
-  // 更新 USDC Balance
+  // 更新 Wallet Balance
   try {
     if (!usdcContract) {
       console.warn("USDC contract not initialized");
@@ -122,7 +122,7 @@ async function updateBalance() {
     // 不抛出错误，继续更新 privacy balance
   }
 
-  // 更新 Privacy Balance
+  // 更新 Hidden Balance
   try {
     if (!liteContract) {
       console.warn("LITE contract not initialized");
@@ -150,7 +150,7 @@ async function updateBalance() {
       console.error("Failed to decrypt balance:", data.error);
     }
   } catch (err) {
-    console.error("Error updating Privacy balance:", err.message);
+    console.error("Error updating Hidden Balance:", err.message);
     // 继续执行，不中断
   }
 }
