@@ -125,6 +125,11 @@ async function handleAction() {
   const urlParams = new URLSearchParams(window.location.search);
   const txNo = urlParams.get('tx_no');
 
+  if (!/^\d+$/.test(txNo) || parseInt(txNo) <= 0) {
+    window.location.href = "base_outgoing_funds.html";
+    return;
+  }
+
   // try {
   showStatus("Fetching current privacy state...", "info");
   setBtnLoading(true);
@@ -228,7 +233,7 @@ async function checkLoginStatus() {
             if (fund.amount) {
               // The amount in DB is formatted string (e.g. "0.020000" or raw wei if updated differently)
               // Based on previous step output: "amount: 0.020000"
-              // But step 210 updated to store `amount_wei`. 
+              // But step 210 updated to store `amount_wei`.
               // Let's check what was actually saved.
               // Ideally we should format it back to decimals if it's wei.
               // The logs said "Amount: 0.020000" BEFORE the user changed to `return amount_wei` in step 209.
@@ -236,14 +241,13 @@ async function checkLoginStatus() {
               // So `fund.amount` will be the Wei value (integer/string).
               // We need to format it.
 
-              // However, JavaScript might receive it as a number or string. 
+              // However, JavaScript might receive it as a number or string.
               // If saved as INTEGER in sqlite, it comes back as number.
 
               // Let's assume it's Wei and format it.
               try {
                 const amountBN = BigInt(fund.amount);
-                const formatted = ethers.formatUnits(amountBN, 6); // USDC uses 6 decimals normally. 
-                // Wait, user environment seems uncertain about decimals (18 in some comments, 6 in others). 
+                // Wait, user environment seems uncertain about decimals (18 in some comments, 6 in others).
                 // But `usdcContract.decimals()` is fetched dynamically. Use `decimals`.
                 // Wait, the previous steps showed `amount_wei / 10**18` was used for formatting in earlier code,
                 // but then the user changed it to `return amount_wei`.
@@ -290,6 +294,13 @@ async function init() {
     return;
   }
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const txNo = urlParams.get('tx_no');
+  if (!/^\d+$/.test(txNo) || parseInt(txNo) <= 0) {
+    window.location.href = "base_outgoing_funds.html";
+    return;
+  }
+
   const navActionBtn = document.getElementById('navActionBtn');
   if (navActionBtn) {
     navActionBtn.addEventListener('click', () => {
@@ -307,8 +318,4 @@ async function init() {
 }
 
 init();
-
-
-
-
 
