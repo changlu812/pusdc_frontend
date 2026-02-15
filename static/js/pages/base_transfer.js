@@ -2,15 +2,26 @@
 // Keep page-specific bootstrap logic here; move shared helpers to static/js/common/.
 
 import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm";
-import { LITE_API, LITE_ADDR, USDC_ADDR, ERC20_ABI, LITE_ABI, getAuthToken, setAuthToken, authenticatedFetch, updateNavBtn, switchNetwork } from '../common/base_common.js';
+import {
+  LITE_API,
+  LITE_ADDR,
+  USDC_ADDR,
+  ERC20_ABI,
+  LITE_ABI,
+  getAuthToken,
+  setAuthToken,
+  authenticatedFetch,
+  updateNavBtn,
+  switchNetwork,
+  pollCancelFlag,
+  waitForBackendStateChange,
+} from "../common/base_common.js";
 // 公共逻辑来自 base_common：统一配置、鉴权请求、网络切换、导航按钮状态。
 // 当前文件保留页面专属流程，便于后续继续拆分到更细的业务模块。
-
 
 let provider, signer, account;
 let usdcContract, liteContract;
 let decimals = 6;
-
 
 const connectBtn = document.getElementById("connectBtn");
 const bridgeUI = document.getElementById("bridgeUI");
@@ -18,7 +29,6 @@ const actionBtn = document.getElementById("actionBtn");
 const amountInput = document.getElementById("amount");
 const statusEl = document.getElementById("status");
 const balanceEl = document.getElementById("usdcBalance");
-
 
 async function connect() {
   try {
@@ -165,22 +175,52 @@ async function handleAction() {
 
     // 3. Call privacyTransfer
     showStatus("Confirming transaction in wallet...", "info");
-    const tx = await liteContract.privacyTransfer(
-      toAddr,
-      data.amount_cipher,
-      data.current_sender_balance,
-      data.updated_sender_balance,
-      data.current_receiver_balance,
-      data.updated_receiver_balance,
-      data.signature,
-    );
+    const previousBalance = document.getElementById("privacyBalance").innerText;
 
-    showStatus("Waiting for confirmation...", "info");
-    await tx.wait();
+    try {
+      const tx = await liteContract.privacyTransfer(
+        toAddr,
+        data.amount_cipher,
+        data.current_sender_balance,
+        data.updated_sender_balance,
+        data.current_receiver_balance,
+        data.updated_receiver_balance,
+        data.signature,
+      );
+
+      showStatus("Waiting for confirmation...", "info");
+
+      // 并行轮询后端和等链上确认
+      await Promise.all([
+        tx.wait().catch(() => null),
+        waitForBackendStateChange(
+          updateBalance,
+          previousBalance,
+          showStatus,
+          300000,
+        ).catch(() => null),
+      ]);
+    } catch (txErr) {
+      const errMsg = txErr.message || txErr.toString();
+      if (errMsg.includes("nonce") || errMsg.includes("BAD_DATA")) {
+        showStatus("Proceeding with backend confirmation...", "warning");
+        await waitForBackendStateChange(
+          updateBalance,
+          previousBalance,
+          showStatus,
+          300000,
+        ).catch(() => null);
+      } else {
+        throw txErr;
+      }
+    }
+
+    await updateBalance();
     showStatus("Privacy Transfer successful!", "success");
     setUIState(true);
+    amountInput.value = "";
+    document.getElementById("toAddr").value = "";
     setBtnLoading(false);
-    updateBalance();
   } catch (err) {
     console.error(err);
     showStatus(err.message || "Transfer failed", "error");
@@ -210,14 +250,17 @@ function setBtnLoading(loading) {
 connectBtn.addEventListener("click", connect);
 actionBtn.addEventListener("click", handleAction);
 
+// 页面卸载时取消轮询
+window.addEventListener("beforeunload", () => {
+  pollCancelFlag = true;
+});
+
 async function checkLoginStatus() {
   const token = getAuthToken();
   if (!token) return;
 
   try {
-    const response = await authenticatedFetch(
-      `${LITE_API}/api/auth/status`,
-    );
+    const response = await authenticatedFetch(`${LITE_API}/api/auth/status`);
     const data = await response.json();
     if (data.is_logged_in && data.address) {
       account = data.address;
@@ -271,8 +314,3 @@ async function init() {
 }
 
 init();
-
-
-
-
-

@@ -121,3 +121,50 @@ export async function switchNetwork() {
   }
   return false;
 }
+
+// 轮询状态管理
+export let pollCancelFlag = false;
+
+/**
+ * 轮询等待后端状态变化（检测余额更新）
+ * @param {Function} updateBalance - 页面的 updateBalance 函数
+ * @param {string} previousBalance - 交易前的 privacy balance 文本
+ * @param {Function} showStatus - 页面的 showStatus 函数
+ * @param {number} timeoutMs - 超时时间（毫秒），默认 5 分钟
+ */
+export async function waitForBackendStateChange(
+  updateBalance,
+  previousBalance,
+  showStatus,
+  timeoutMs = 300000,
+) {
+  const startTime = Date.now();
+  let interval = 1000; // 初始 1 秒
+
+  showStatus("Waiting for backend to confirm transaction...", "info");
+
+  while (Date.now() - startTime < timeoutMs) {
+    if (pollCancelFlag) {
+      pollCancelFlag = false;
+      throw new Error("Poll cancelled");
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, interval));
+
+    try {
+      await updateBalance();
+      const currentBalance =
+        document.getElementById("privacyBalance").innerText;
+
+      if (currentBalance !== previousBalance) {
+        return true;
+      }
+    } catch (err) {
+      // 继续轮询
+    }
+
+    interval = Math.min(interval * 1.5, 10000);
+  }
+
+  throw new Error("Timeout waiting for backend");
+}

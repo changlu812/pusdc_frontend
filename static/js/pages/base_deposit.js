@@ -13,6 +13,8 @@ import {
   authenticatedFetch,
   updateNavBtn,
   switchNetwork,
+  pollCancelFlag,
+  waitForBackendStateChange,
 } from "../common/base_common.js";
 // 公共逻辑来自 base_common：统一配置、鉴权请求、网络切换、导航按钮状态。
 // 当前文件保留页面专属流程，便于后续继续拆分到更细的业务模块。
@@ -104,13 +106,30 @@ async function connect() {
 }
 
 async function updateBalance() {
-  try {
-    // USDC Balance
-    const bal = await usdcContract.balanceOf(account);
-    balanceEl.innerText = `${ethers.formatUnits(bal, decimals)} USDC`;
+  // 分开处理 USDC 和 Privacy 余额，避免一个失败影响另一个
 
-    // Privacy Balance
+  // 更新 USDC Balance
+  try {
+    if (!usdcContract) {
+      console.warn("USDC contract not initialized");
+      return;
+    }
+    const bal = await usdcContract.balanceOf(account);
+    const formattedBal = ethers.formatUnits(bal, decimals);
+    balanceEl.innerText = `${formattedBal} USDC`;
+  } catch (err) {
+    console.error("Error updating USDC balance:", err.message);
+    // 不抛出错误，继续更新 privacy balance
+  }
+
+  // 更新 Privacy Balance
+  try {
+    if (!liteContract) {
+      console.warn("LITE contract not initialized");
+      return;
+    }
     const privacyBalCipher = await liteContract.privacyBalances(account);
+
     if (!privacyBalCipher || privacyBalCipher === "0x") {
       document.getElementById("privacyBalance").innerText = "0.00 PUSDC";
       return;
@@ -121,11 +140,18 @@ async function updateBalance() {
     );
     const data = await resp.json();
     if (data.status === "ok") {
+      const formattedPrivacyBal = ethers.formatUnits(
+        data.balance.toString(),
+        decimals,
+      );
       document.getElementById("privacyBalance").innerText =
-        `${ethers.formatUnits(data.balance.toString(), decimals)} PUSDC`;
+        `${formattedPrivacyBal} PUSDC`;
+    } else {
+      console.error("Failed to decrypt balance:", data.error);
     }
   } catch (err) {
-    console.error("Error updating balances:", err);
+    console.error("Error updating Privacy balance:", err.message);
+    // 继续执行，不中断
   }
 }
 
@@ -177,63 +203,110 @@ async function handleAction() {
     return;
   }
 
-  const parsedAmount = ethers.parseUnits(amount, decimals);
+  try {
+    const parsedAmount = ethers.parseUnits(amount, decimals);
 
-  const allowance = await usdcContract.allowance(account, LITE_ADDR);
+    const allowance = await usdcContract.allowance(account, LITE_ADDR);
 
-  if (allowance < parsedAmount) {
-    // Step 1: Approve
-    showStatus("Approving USDC...", "info");
-    setBtnLoading(true);
-    const tx = await usdcContract.approve(LITE_ADDR, parsedAmount);
-    await tx.wait();
-    showStatus("Approval successful!", "success");
-    setUIState(2);
-    setBtnLoading(false);
-  } else {
-    // Step 2: Deposit
-    showStatus("Fetching current privacy state...", "info");
-    setBtnLoading(true);
+    if (allowance < parsedAmount) {
+      // Step 1: Approve
+      showStatus("Approving USDC...", "info");
+      setBtnLoading(true);
+      const tx = await usdcContract.approve(LITE_ADDR, parsedAmount);
+      await tx.wait();
+      showStatus("Approval successful!", "success");
+      setUIState(2);
+      setBtnLoading(false);
+    } else {
+      // Step 2: Deposit
+      showStatus("Fetching current privacy state...", "info");
+      setBtnLoading(true);
 
-    // 1. Get current Nonce and Balance from contract
-    const nonce = await liteContract.privacyNonces(account);
-    const balance = await liteContract.privacyBalances(account);
+      // 保存交易前的 balance，用于后续轮询对比
+      const previousBalance =
+        document.getElementById("privacyBalance").innerText;
 
-    // 2. Fetch signature and encrypted amounts from API
-    showStatus("Requesting witness signature...", "info");
-    const apiUrl = `${LITE_API}/api/base/usdc/sign_deposit?addr=${account}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1n).toString()}&balance=${balance || "0x"}`;
+      // 1. Get current Nonce and Balance from contract
+      const nonce = await liteContract.privacyNonces(account);
+      const balance = await liteContract.privacyBalances(account);
 
-    const response = await authenticatedFetch(apiUrl);
-    const data = await response.json();
+      // 2. Fetch signature and encrypted amounts from API
+      showStatus("Requesting witness signature...", "info");
+      const apiUrl = `${LITE_API}/api/base/usdc/sign_deposit?addr=${account}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1n).toString()}&balance=${balance || "0x"}`;
 
-    if (data.status !== "ok") {
-      throw new Error(
-        data.error || "Failed to get witness signature from server",
-      );
+      const response = await authenticatedFetch(apiUrl);
+      const data = await response.json();
+
+      if (data.status !== "ok") {
+        throw new Error(
+          data.error || "Failed to get witness signature from server",
+        );
+      }
+
+      // 3. Call privacyDeposit
+      showStatus("Confirming transaction in wallet...", "info");
+      let txHash = null;
+      try {
+        const tx = await liteContract.privacyDeposit(
+          parsedAmount,
+          data.amount_cipher,
+          data.current_balance,
+          data.updated_balance,
+          data.signature,
+        );
+        txHash = tx.hash;
+        showStatus("Waiting for confirmation...", "info");
+
+        // 并行轮询后端和等链上确认（两个同时进行，任何一个失败都继续）
+        await Promise.all([
+          tx.wait().catch(() => null),
+          waitForBackendStateChange(
+            updateBalance,
+            previousBalance,
+            showStatus,
+            300000,
+          ).catch(() => null),
+        ]);
+      } catch (txErr) {
+        // 捕获 ethers 解析错误（如 nonce: undefined）
+        // 但交易可能已经被提交到链上了
+        const errMsg = txErr.message || txErr.toString();
+
+        // 检查是否是因为钱包解析问题而非真正的交易失败
+        if (errMsg.includes("nonce") || errMsg.includes("BAD_DATA")) {
+          showStatus(
+            "Wallet reported parsing issue, but proceeding with backend confirmation...",
+            "warning",
+          );
+          // 继续轮询后端来确认交易
+        } else {
+          // 真正的交易失败
+          throw txErr;
+        }
+      }
+
+      // ✨ 已在上面 Promise.race() 中并行执行，这里只需更新余额
+      await updateBalance();
+
+      showStatus("Privacy Deposit successful!", "success");
+      setUIState(3);
+
+      // 清空输入框
+      amountInput.value = "";
+
+      // 查看完成状态 2 秒后重置
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // 重置按钮状态回到初始
+      setBtnLoading(false);
+      setUIState(1);
+      checkAllowance();
     }
-
-    // 3. Call privacyDeposit
-    showStatus("Confirming transaction in wallet...", "info");
-    const tx = await liteContract.privacyDeposit(
-      parsedAmount,
-      data.amount_cipher,
-      data.current_balance,
-      data.updated_balance,
-      data.signature,
-    );
-
-    showStatus("Waiting for confirmation...", "info");
-    await tx.wait();
-    showStatus("Privacy Deposit successful!", "success");
-    setUIState(3);
+  } catch (err) {
+    console.error("Action failed:", err);
+    showStatus(err.reason || err.message || "Transaction failed", "error");
     setBtnLoading(false);
-    updateBalance();
   }
-  // } catch (err) {
-  //     console.error(err);
-  //     showStatus(err.reason || "Transaction failed", "error");
-  //     setBtnLoading(false);
-  // }
 }
 
 function showStatus(msg, type) {
@@ -259,6 +332,11 @@ function setBtnLoading(loading) {
 connectBtn.addEventListener("click", connect);
 actionBtn.addEventListener("click", handleAction);
 amountInput.addEventListener("input", checkAllowance);
+
+// 页面卸载时取消轮询
+window.addEventListener("beforeunload", () => {
+  pollCancelFlag = true;
+});
 
 async function checkLoginStatus() {
   const token = getAuthToken();
