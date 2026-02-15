@@ -8,7 +8,7 @@ import { LITE_API, LITE_ADDR, USDC_ADDR, INBOX_ADDR, ERC20_ABI, LITE_ABI, INBOX_
 
 
 let provider, signer, account;
-let usdcContract, liteContract;
+let usdcContract, liteContract, inboxContract;
 let decimals = 6;
 let currentEmail = "";
 
@@ -19,6 +19,7 @@ const actionBtn = document.getElementById('actionBtn');
 const amountInput = document.getElementById('amount');
 const statusEl = document.getElementById('status');
 const balanceEl = document.getElementById('usdcBalance');
+const inboxBalanceEl = document.getElementById('inboxBalance');
 
 
 async function connect() {
@@ -64,6 +65,7 @@ async function connect() {
 
     usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
     liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
+    inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
 
     try {
       decimals = await usdcContract.decimals();
@@ -109,7 +111,11 @@ async function updateBalance() {
       const bal = await usdcContract.balanceOf(account);
       balanceEl.innerText = `${ethers.formatUnits(bal, decimals)} USDC`;
 
-      // Hidden Balance
+      // Claimable USDC
+      const inboxBalance = await inboxContract.inboxBalances(account);
+      inboxBalanceEl.innerText = `${ethers.formatUnits(inboxBalance.toString(), decimals)} USDC`;
+
+      // Private Balance
       const privacyBalCipher = await liteContract.privacyBalances(account);
       if (!privacyBalCipher || privacyBalCipher === '0x') {
         document.getElementById('privacyBalance').innerText = '0.00 PUSDC';
@@ -246,6 +252,7 @@ async function checkLoginStatus() {
 
       usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
       liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
+      inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
 
       try { decimals = await usdcContract.decimals(); } catch (e) { decimals = 6; }
 
