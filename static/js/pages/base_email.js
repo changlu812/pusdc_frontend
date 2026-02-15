@@ -142,10 +142,13 @@ async function handleAction() {
   // 2. Fetch signature from API
   showStatus("Requesting witness signature...", "info");
   const apiUrl = `${LITE_API}/api/send_fund`;
+  const formData = new URLSearchParams();
+  formData.append('email', toEmail);
+  formData.append('tx_no', txNo);
+
   const response = await authenticatedFetch(apiUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: toEmail, tx_no: txNo })
+    body: formData
   });
   const data = await response.json();
 
