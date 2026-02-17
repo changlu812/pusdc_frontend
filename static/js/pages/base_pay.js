@@ -183,7 +183,6 @@ async function handleAction() {
   console.log(parsedAmount);
 
   if (allowance < parsedAmount) {
-    // Step 1: Approve
     showStatus("Approving USDC...", "info");
     setBtnLoading(true);
     const tx = await usdcContract.approve(INBOX_ADDR, parsedAmount);
@@ -192,51 +191,43 @@ async function handleAction() {
     setUIState(2);
     setBtnLoading(false);
   } else {
-    // Step 2: Deposit
     showStatus("Fetching current privacy state...", "info");
     setBtnLoading(true);
 
-    // 1. Get current Nonce and Balance from contract
-    // const nonce = await liteContract.privacyNonces(account);
-    // const balance = await liteContract.privacyBalances(account);
-
-    // 2. Fetch signature and encrypted amounts from API
-    // showStatus("Requesting witness signature...", "info");
-    // const apiUrl = `${LITE_API}/api/base/usdc/sign_deposit?addr=${account}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1n).toString()}&balance=${balance || '0x'}`;
-
-    // const response = await authenticatedFetch(apiUrl);
-    // const data = await response.json();
-
-    // if (data.status !== 'ok') {
-    //   throw new Error(data.error || "Failed to get witness signature from server");
-    // }
-
-    // 3. Call privacyDeposit
     showStatus("Confirming transaction in wallet...", "info");
     console.log(parsedAmount);
     const tx = await inboxContract.sendFund(
       parsedAmount
     );
-    // const tx = await liteContract.privacyDeposit(
-    //   parsedAmount,
-    //   data.amount_cipher,
-    //   data.current_balance,
-    //   data.updated_balance,
-    //   data.signature
-    // );
 
     showStatus("Waiting for confirmation...", "info");
-    await tx.wait();
-    showStatus("Privacy Deposit successful!", "success");
+    const receipt = await tx.wait();
+
+    let txNo = null;
+    for (const log of receipt.logs) {
+      if (log.address.toLowerCase() === INBOX_ADDR.toLowerCase()) {
+        try {
+          const parsed = inboxContract.interface.parseLog(log);
+          if (parsed && parsed.name === 'InboxSend') {
+            txNo = parsed.args.txNo;
+            console.log("Found txNo:", txNo.toString());
+            break;
+          }
+        } catch (e) {
+          // Not our event or parse error, skip
+        }
+      }
+    }
+
+    if (txNo) {
+      showStatus(`Privacy Deposit successful! txNo: ${txNo.toString()}`, "success");
+    } else {
+      showStatus("Privacy Deposit successful!", "success");
+    }
     setUIState(3);
     setBtnLoading(false);
     updateBalance();
   }
-  // } catch (err) {
-  //   console.error(err);
-  //   showStatus(err.reason || "Transaction failed", "error");
-  //   setBtnLoading(false);
-  // }
 }
 
 function showStatus(msg, type) {
@@ -322,8 +313,3 @@ async function init() {
 }
 
 init();
-
-
-
-
-
