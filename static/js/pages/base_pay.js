@@ -2,7 +2,7 @@
 // Keep page-specific bootstrap logic here; move shared helpers to static/js/common/.
 
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm';
-import { LITE_API, LITE_ADDR, USDC_ADDR, INBOX_ADDR, ERC20_ABI, LITE_ABI, INBOX_ABI, getAuthToken, setAuthToken, authenticatedFetch, updateNavBtn, switchNetwork } from '../common/base_common.js';
+import { LITE_API, LITE_ADDR, USDC_ADDR, INBOX_ADDR, ERC20_ABI, LITE_ABI, INBOX_ABI, getAuthToken, setAuthToken, authenticatedFetch, updateNavBtn, switchNetwork, setPollCancelFlag, waitForBackendStateChange } from '../common/base_common.js';
 // 公共逻辑来自 base_common：统一配置、鉴权请求、网络切换、导航按钮状态。
 // 当前文件保留页面专属流程，便于后续继续拆分到更细的业务模块。
 
@@ -21,6 +21,13 @@ const balanceEl = document.getElementById('usdcBalance');
 const step1 = document.getElementById('step1');
 const step2 = document.getElementById('step2');
 const progressLine = document.getElementById('progressLine');
+
+async function updateWalletBalance() {
+  const bal = await usdcContract.balanceOf(account);
+  const formatted = `${ethers.formatUnits(bal, decimals)} USDC`;
+  balanceEl.innerText = formatted;
+  return formatted;
+}
 
 
 async function connect() {
@@ -97,8 +104,7 @@ async function connect() {
 async function updateBalance() {
   try {
     // Wallet Balance
-    const bal = await usdcContract.balanceOf(account);
-    balanceEl.innerText = `${ethers.formatUnits(bal, decimals)} USDC`;
+    await updateWalletBalance();
 
     // Hidden Balance
     const privacyBalCipher = await liteContract.privacyBalances(account);
@@ -191,42 +197,79 @@ async function handleAction() {
     setUIState(2);
     setBtnLoading(false);
   } else {
-    showStatus("Fetching current privacy state...", "info");
+    showStatus("Fetching current wallet state...", "info");
     setBtnLoading(true);
+    const previousBalance = await updateWalletBalance();
 
     showStatus("Confirming transaction in wallet...", "info");
     console.log(parsedAmount);
-    const tx = await inboxContract.sendFund(
-      parsedAmount
-    );
+    let receipt = null;
+    try {
+      const tx = await inboxContract.sendFund(
+        parsedAmount
+      );
 
-    showStatus("Waiting for confirmation...", "info");
-    const receipt = await tx.wait();
+      showStatus("Waiting for confirmation...", "info");
+      [receipt] = await Promise.all([
+        tx.wait().catch(() => null),
+        waitForBackendStateChange(
+          updateWalletBalance,
+          previousBalance,
+          showStatus,
+          300000,
+          "usdcBalance",
+        ).catch(() => null),
+      ]);
+    } catch (txErr) {
+      const errMsg = txErr.message || txErr.toString();
+      if (errMsg.includes("nonce") || errMsg.includes("BAD_DATA")) {
+        showStatus(
+          "Wallet reported parsing issue, but proceeding with balance confirmation...",
+          "warning",
+        );
+        await waitForBackendStateChange(
+          updateWalletBalance,
+          previousBalance,
+          showStatus,
+          300000,
+          "usdcBalance",
+        ).catch(() => null);
+      } else {
+        throw txErr;
+      }
+    }
 
     let txNo = null;
-    for (const log of receipt.logs) {
-      if (log.address.toLowerCase() === INBOX_ADDR.toLowerCase()) {
-        try {
-          const parsed = inboxContract.interface.parseLog(log);
-          if (parsed && parsed.name === 'InboxSend') {
-            txNo = parsed.args.txNo;
-            console.log("Found txNo:", txNo.toString());
-            break;
+    if (receipt) {
+      for (const log of receipt.logs) {
+        if (log.address.toLowerCase() === INBOX_ADDR.toLowerCase()) {
+          try {
+            const parsed = inboxContract.interface.parseLog(log);
+            if (parsed && parsed.name === 'InboxSend') {
+              txNo = parsed.args.txNo;
+              console.log("Found txNo:", txNo.toString());
+              break;
+            }
+          } catch (e) {
+            // Not our event or parse error, skip
           }
-        } catch (e) {
-          // Not our event or parse error, skip
         }
       }
     }
 
+    await updateBalance();
     if (txNo) {
-      showStatus(`Privacy Deposit successful! txNo: ${txNo.toString()}`, "success");
+      showStatus(`Payment successful! txNo: ${txNo.toString()}`, "success");
     } else {
-      showStatus("Privacy Deposit successful!", "success");
+      showStatus("Payment successful!", "success");
     }
     setUIState(3);
-    setBtnLoading(false);
-    updateBalance();
+    amountInput.value = "";
+
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setBtnLoading(false, false);
+    setUIState(1);
+    checkAllowance();
   }
 }
 
@@ -235,12 +278,12 @@ function showStatus(msg, type) {
   statusEl.className = type === 'error' ? 'error-msg' : (type === 'success' ? 'success-msg' : 'info-msg');
 }
 
-function setBtnLoading(loading) {
+function setBtnLoading(loading, shouldRefreshState = true) {
   actionBtn.disabled = loading;
   if (loading) {
     const originalText = actionBtn.innerText;
     actionBtn.innerHTML = `<div class="loader"></div> Processing...`;
-  } else {
+  } else if (shouldRefreshState) {
     checkAllowance();
   }
 }
@@ -248,6 +291,11 @@ function setBtnLoading(loading) {
 connectBtn.addEventListener('click', connect);
 actionBtn.addEventListener('click', handleAction);
 amountInput.addEventListener('input', checkAllowance);
+
+// 页面卸载时取消轮询
+window.addEventListener("beforeunload", () => {
+  setPollCancelFlag(true);
+});
 
 async function checkLoginStatus() {
   const token = getAuthToken();

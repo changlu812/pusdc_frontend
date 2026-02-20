@@ -24,9 +24,12 @@
             min-height: 100vh;
             display: flex;
             justify-content: center;
-            align-items: center;
-            overflow: hidden;
+            align-items: flex-start;
+            overflow-y: auto;
+            overflow-x: hidden;
             position: relative;
+            padding-top: 96px;
+            padding-bottom: 24px;
         }
 
         .container {
@@ -66,6 +69,126 @@
             color: var(--text-dim);
             font-size: 14px;
         }
+        .outgoing-funds-tip {
+            margin: 0 0 16px;
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+
+        .outgoing-funds-table-wrap {
+            overflow-x: hidden;
+            overflow-y: auto;
+            max-height: min(46vh, 420px);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            scrollbar-gutter: stable;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(148, 163, 184, 0.38) transparent;
+        }
+
+        .outgoing-funds-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            table-layout: fixed;
+        }
+
+        .outgoing-funds-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: rgba(15, 23, 42, 0.96);
+            color: var(--text-dim);
+            text-align: left;
+            padding: 12px 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .outgoing-funds-table tbody td {
+            padding: 12px 8px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .outgoing-funds-table tbody tr {
+            cursor: pointer;
+        }
+
+        .outgoing-funds-table tbody tr:hover {
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        .outgoing-funds-table th:nth-child(1),
+        .outgoing-funds-table td:nth-child(1) {
+            width: 18%;
+        }
+
+        .outgoing-funds-table th:nth-child(2),
+        .outgoing-funds-table td:nth-child(2) {
+            width: 34%;
+        }
+
+        .outgoing-funds-table th:nth-child(3),
+        .outgoing-funds-table td:nth-child(3) {
+            width: 24%;
+        }
+
+        .outgoing-funds-table th:nth-child(4),
+        .outgoing-funds-table td:nth-child(4) {
+            width: 24%;
+        }
+
+        body {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(99, 102, 241, 0.75) rgba(255, 255, 255, 0.08);
+        }
+
+        body::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        body::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+        }
+
+        body::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, rgba(99, 102, 241, 0.9), rgba(79, 70, 229, 0.9));
+            border-radius: 999px;
+            border: 2px solid rgba(15, 23, 42, 0.45);
+        }
+
+        body::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, rgba(129, 140, 248, 0.95), rgba(99, 102, 241, 0.95));
+        }
+
+        .outgoing-funds-table-wrap::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .outgoing-funds-table-wrap::-webkit-scrollbar-track {
+            background: transparent;
+            border-radius: 999px;
+            margin-block: 6px;
+        }
+
+        .outgoing-funds-table-wrap::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.34);
+            border-radius: 999px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+
+        .outgoing-funds-table-wrap::-webkit-scrollbar-thumb:hover {
+            background: rgba(129, 140, 248, 0.46);
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+
 
         .input-group {
             margin-bottom: 24px;
@@ -317,4 +440,3 @@
                 padding: 24px;
             }
         }
-

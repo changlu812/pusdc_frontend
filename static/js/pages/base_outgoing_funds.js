@@ -217,14 +217,15 @@ function renderOutgoingFunds(funds) {
   let tableHtml = `
     <div style="margin-top: 32px;">
       <h3 style="margin-bottom: 16px; font-size: 18px;">Outgoing Funds History</h3>
-      <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+      <p class="outgoing-funds-tip">Tip: Click any record in Outgoing Funds History to send an email for that fund.</p>
+      <div class="outgoing-funds-table-wrap">
+        <table class="outgoing-funds-table">
           <thead>
-            <tr style="border-bottom: 1px solid var(--border); text-align: left;">
-              <th style="padding: 12px 8px; color: var(--text-dim);">TX No</th>
-              <th style="padding: 12px 8px; color: var(--text-dim);">Email</th>
-              <th style="padding: 12px 8px; color: var(--text-dim);">Amount</th>
-              <th style="padding: 12px 8px; color: var(--text-dim);">Date</th>
+            <tr>
+              <th>TX No</th>
+              <th>Email</th>
+              <th>Amount</th>
+              <th>Date</th>
             </tr>
           </thead>
           <tbody>
@@ -233,7 +234,7 @@ function renderOutgoingFunds(funds) {
   if (funds.length === 0) {
     tableHtml += `
       <tr>
-        <td colspan="4" style="padding: 24px; text-align: center; color: var(--text-dim);">
+        <td colspan="4" style="padding: 24px; text-align: center; color: var(--text-dim); border-bottom: none;">
           No outgoing funds found
         </td>
       </tr>
@@ -247,11 +248,11 @@ function renderOutgoingFunds(funds) {
       const emailDisplay = fund.email ? fund.email : '-';
 
       tableHtml += `
-        <tr style="border-bottom: 1px solid var(--border); cursor: pointer;" onclick="window.location.href='base_email.html?tx_no=${fund.tx_no}'">
-          <td style="padding: 12px 8px;">#${fund.tx_no}</td>
-          <td style="padding: 12px 8px;">${emailDisplay}</td>
-          <td style="padding: 12px 8px;">${amountDisplay}</td>
-          <td style="padding: 12px 8px; color: var(--text-dim);">${date}</td>
+        <tr onclick="window.location.href='base_email.html?tx_no=${fund.tx_no}'">
+          <td>#${fund.tx_no}</td>
+          <td>${emailDisplay}</td>
+          <td>${amountDisplay}</td>
+          <td style="color: var(--text-dim);">${date}</td>
         </tr>
       `;
     });
@@ -333,7 +334,6 @@ async function init() {
 }
 
 init();
-
 
 
 
