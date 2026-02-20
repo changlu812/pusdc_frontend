@@ -15,6 +15,8 @@ import {
   authenticatedFetch,
   updateNavBtn,
   switchNetwork,
+  setPollCancelFlag,
+  waitForBackendStateChange,
 } from "../common/base_common.js";
 
 let provider, signer, account;
@@ -154,15 +156,29 @@ async function handleAction() {
   try {
     showStatus("Confirming transaction in wallet...", "info");
     setBtnLoading(true);
+    const previousBalance = inboxBalanceEl.innerText;
 
     const tx = await inboxContract.withdraw(parsedAmount);
 
     showStatus("Waiting for confirmation...", "info");
-    await tx.wait();
+    await Promise.all([
+      tx.wait().catch(() => null),
+      waitForBackendStateChange(
+        updateBalance,
+        previousBalance,
+        showStatus,
+        300000,
+        "claimableBalance",
+      ).catch(() => null),
+    ]);
+    await updateBalance();
     showStatus("Withdrawal successful!", "success");
     setUIState(2);
-    setBtnLoading(false);
-    updateBalance();
+    amountInput.value = "";
+
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setBtnLoading(false, false);
+    setUIState(1);
   } catch (err) {
     console.error(err);
     showStatus(err.reason || "Transaction failed", "error");
@@ -180,18 +196,23 @@ function showStatus(msg, type) {
         : "info-msg";
 }
 
-function setBtnLoading(loading) {
+function setBtnLoading(loading, shouldResetText = true) {
   actionBtn.disabled = loading;
   if (loading) {
     const originalText = actionBtn.innerText;
     actionBtn.innerHTML = `<div class="loader"></div> Processing...`;
-  } else {
+  } else if (shouldResetText) {
     actionBtn.innerText = "Withdraw";
   }
 }
 
 connectBtn.addEventListener("click", connect);
 actionBtn.addEventListener("click", handleAction);
+
+// 页面卸载时取消轮询
+window.addEventListener("beforeunload", () => {
+  setPollCancelFlag(true);
+});
 
 async function checkLoginStatus() {
   const token = getAuthToken();

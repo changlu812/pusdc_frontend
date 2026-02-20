@@ -124,6 +124,9 @@ export async function switchNetwork() {
 
 // 轮询状态管理
 export let pollCancelFlag = false;
+export const setPollCancelFlag = (value) => {
+  pollCancelFlag = value;
+};
 
 /**
  * 轮询等待后端状态变化（检测余额更新）
@@ -131,12 +134,14 @@ export let pollCancelFlag = false;
  * @param {string} previousBalance - 交易前的 privacy balance 文本
  * @param {Function} showStatus - 页面的 showStatus 函数
  * @param {number} timeoutMs - 超时时间（毫秒），默认 5 分钟
+ * @param {string} balanceElementId - 需要对比的余额 DOM id，默认 privacyBalance
  */
 export async function waitForBackendStateChange(
   updateBalance,
   previousBalance,
   showStatus,
   timeoutMs = 300000,
+  balanceElementId = "privacyBalance",
 ) {
   const startTime = Date.now();
   let interval = 1000; // 初始 1 秒
@@ -153,8 +158,8 @@ export async function waitForBackendStateChange(
 
     try {
       await updateBalance();
-      const currentBalance =
-        document.getElementById("privacyBalance").innerText;
+      const balanceEl = document.getElementById(balanceElementId);
+      const currentBalance = balanceEl ? balanceEl.innerText : "";
 
       if (currentBalance !== previousBalance) {
         return true;
