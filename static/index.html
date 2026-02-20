@@ -4,110 +4,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PUSDC | Privacy-Preserving USDC on Base</title>
+    <title>PUSDC | Share Digital Dollars with Anyone via Email</title>
     <meta name="description"
-        content="Secure, compliant, and easy-to-use privacy protocol for USDC on Base Mainnet using Homomorphic Encryption.">
+        content="The easiest way to onboard friends to Web3. Send USDC on Base Mainnet to any email address. No wallet or crypto experience required for the recipient.">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="css/pages/index.css">
+    <link rel="stylesheet" href="css/pages/index.css">
 </head>
 
 <body>
     <nav>
         <a href="index.html" class="logo">PUSDC</a>
-        <a href="base_deposit.html" id="navActionBtn" class="btn-launch">Launch App</a>
+        <a href="base_pay.html" id="navActionBtn" class="btn-launch">Launch App</a>
     </nav>
 
     <header>
-        <h1>Protect Your Privacy with <span class="hero-gradient">Cryptography</span></h1>
-        <p class="subheading">The next generation of privacy USDC transfers on Base.<br> Secure, compliant, and built
-            for everyone.</p>
+        <h1>Gift Digital Dollars to <span class="hero-gradient">Anyone with an Email</span></h1>
+        <p class="subheading">The simplest bridge between Web3 and the rest of the world.<br>
+            Onboard your friends to Base in seconds—no wallet address or complex setup needed for them to start.</p>
         <div style="display: flex; gap: 16px; justify-content: center;">
-            <a href="base_deposit.html" class="btn-launch" style="padding: 16px 40px; font-size: 18px;">Start Private
-                Deposit</a>
+            <a href="base_pay.html" class="btn-launch" style="padding: 16px 40px; font-size: 18px;">Bring a Friend to
+                Web3</a>
         </div>
     </header>
 
     <section class="section">
         <div class="section-title">
-            <h2>Why Privacy Matters</h2>
-            <p style="color: var(--text-dim)">Current on-chain transfers are visible to the world. Your balance, your
-                history, your business—exposed.</p>
+            <h2>Break the Crypto Barrier</h2>
+            <p style="color: var(--text-dim)">Empower your non-crypto friends with their first Digital Dollars.</p>
         </div>
         <div class="grid">
             <div class="card">
-                <h3>Native Experience</h3>
-                <p>Use any Ethereum wallet (MetaMask, Coinbase Wallet, etc.). No special "shielded" accounts or complex
-                    setup required.</p>
+                <h3>No Wallet Required in advance</h3>
+                <p>Your friends don't need to know what a "Seed Phrase" or "Public Key" is first.
+                    They just need an email inbox to receive funds.</p>
             </div>
             <div class="card">
-                <h3>Homomorphic Encryption</h3>
-                <p>Verify transactions while keeping amounts encrypted. The contract handles math on encrypted values,
-                    ensuring your data never leaks.</p>
+                <h3>Stable & Secure</h3>
+                <p>Send USDC—a digital dollar. It’s the perfect way to introduce someone to the benefits of blockchain
+                    without the price volatility.</p>
             </div>
             <div class="card">
-                <h3>Compliant by Design</h3>
-                <p>A privacy layer built for honest users. Unlike mixers, PUSDC emphasizes legal compliance while
-                    protecting personal financial sovereignty.</p>
+                <h3>One-Click Onboarding</h3>
+                <p>When they claim their funds, we guide them through the simple steps of setting up their first wallet
+                    on Base.</p>
             </div>
         </div>
     </section>
 
     <section class="section">
         <div class="section-title">
-            <h2>The Privacy Landscape</h2>
-            <p style="color: var(--text-dim)">A direct comparison of modern privacy protocols.</p>
+            <h2>How it Works</h2>
+            <p style="color: var(--text-dim)">Simple for you, even simpler for them.</p>
         </div>
-
-        <div class="comparison-container">
-            <div class="comparison-grid">
-                <div class="comp-row comp-header">
-                    <div>Feature</div>
-                    <div class="comp-value">Standard USDC</div>
-                    <div class="comp-value">Tornado Cash</div>
-                    <div class="comp-value">Railgun</div>
-                    <div class="comp-value" style="color: var(--primary)">PUSDC</div>
-                </div>
-                <div class="comp-row">
-                    <div class="comp-label">Transaction Privacy</div>
-                    <div class="comp-value negative">Public (0%)</div>
-                    <div class="comp-value highlight">Mixer (100%)</div>
-                    <div class="comp-value highlight">Shielded</div>
-                    <div class="comp-value highlight">Encrypted (HE)</div>
-                </div>
-                <div class="comp-row">
-                    <div class="comp-label">Wallet Support</div>
-                    <div class="comp-value highlight">Universal</div>
-                    <div class="comp-value highlight">Universal</div>
-                    <div class="comp-value negative">Special Wallet</div>
-                    <div class="comp-value highlight">Universal</div>
-                </div>
-                <div class="comp-row">
-                    <div class="comp-label">Legal Association</div>
-                    <div class="comp-value highlight">Regulated</div>
-                    <div class="comp-value negative">Launderer-favored</div>
-                    <div class="comp-value">Mixed</div>
-                    <div class="comp-value highlight">Compliant</div>
-                </div>
-                <div class="comp-row">
-                    <div class="comp-label">Technology</div>
-                    <div class="comp-value">Ledger</div>
-                    <div class="comp-value">ZK-Snarks</div>
-                    <div class="comp-value">ZK-Proofs</div>
-                    <div class="comp-value highlight">Homomorphic Encryption</div>
-                </div>
+        <div class="grid">
+            <div class="card">
+                <div style="font-size: 40px; margin-bottom: 20px;">🏦</div>
+                <h3>1. You Deposit</h3>
+                <p>Connect your wallet and move USDC into the PUSDC protocol on Base.</p>
+            </div>
+            <div class="card">
+                <div style="font-size: 40px; margin-bottom: 20px;">📧</div>
+                <h3>2. You Send</h3>
+                <p>Input your friend's email address and the amount. That's it—no long hex strings to copy.</p>
+            </div>
+            <div class="card">
+                <div style="font-size: 40px; margin-bottom: 20px;">🎁</div>
+                <h3>3. They Claim</h3>
+                <p>They get a link via email. Using a standard authenticator app they're already familiar with, they can
+                    securely claim their digital dollars in seconds.</p>
             </div>
         </div>
     </section>
 
+    <!-- Temporarily hidden Privacy sections -->
+    <!-- 
+    <section class="section">
+        <div class="section-title">
+            <h2>Why Privacy Matters</h2>
+            <p style="color: var(--text-dim)">Current on-chain transfers are visible to the world. Your balance, your history, your business—exposed.</p>
+        </div>
+        <div class="grid">
+            <div class="card">
+                <h3>Native Experience</h3>
+                <p>Use any Ethereum wallet (MetaMask, Coinbase Wallet, etc.). No special "shielded" accounts or complex setup required.</p>
+            </div>
+            <div class="card">
+                <h3>Homomorphic Encryption</h3>
+                <p>Verify transactions while keeping amounts encrypted. The contract handles math on encrypted values, ensuring your data never leaks.</p>
+            </div>
+            <div class="card">
+                <h3>Compliant by Design</h3>
+                <p>A privacy layer built for honest users. Unlike mixers, PUSDC emphasizes legal compliance while protecting personal financial sovereignty.</p>
+            </div>
+        </div>
+    </section>
+    -->
+
     <section class="section" style="text-align: center;">
-        <h2>Ready to go privacy?</h2>
-        <p style="color: var(--text-dim); margin-top: 16px; margin-bottom: 32px;">Enjoy privacy at the speed of Base
-            Mainnet.</p>
-        <a href="base_deposit.html" class="btn-launch" style="padding: 16px 48px;">Enter PUSDC App</a>
+        <h2>Ready to onboard someone?</h2>
+        <p style="color: var(--text-dim); margin-top: 16px; margin-bottom: 32px;">Make Web3 accessible to everyone,
+            starting with your friends.</p>
+        <a href="base_pay.html" class="btn-launch" style="padding: 16px 48px;">Send First Digital Dollar</a>
     </section>
 
     <footer>
-        <p>&copy; 2026 PUSDC Protocol. Built for privacy on Base.</p>
+        <p>&copy; 2026 PUSDC Protocol. Breaking the barriers to Web3 on Base.</p>
     </footer>
 
 </body>
