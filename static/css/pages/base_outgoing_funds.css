@@ -66,6 +66,12 @@
             color: var(--text-dim);
             font-size: 14px;
         }
+        .outgoing-funds-tip {
+            margin: 0 0 16px;
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+
 
         .input-group {
             margin-bottom: 24px;

@@ -217,6 +217,7 @@ function renderOutgoingFunds(funds) {
   let tableHtml = `
     <div style="margin-top: 32px;">
       <h3 style="margin-bottom: 16px; font-size: 18px;">Outgoing Funds History</h3>
+      <p class="outgoing-funds-tip">Tip: Click any record in Outgoing Funds History to send an email for that fund.</p>
       <div style="overflow-x: auto;">
         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
           <thead>
