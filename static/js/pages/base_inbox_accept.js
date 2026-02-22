@@ -94,7 +94,7 @@ async function updateBalance() {
     const resp = await fetch(`${LITE_API}/api/outgoing_fund?tx_no=${txNo}&credential=${credential}`);
     const data = await resp.json();
 
-    if (data['2fa'] == null) {
+    if (data['2fa'] == null || data['2fa'] == false) {
       showStatus("2FA not enabled", "error");
       window.location.href = `/email_authenticator.html?tx_no=${txNo}&credential=${credential}`;
       // return;
