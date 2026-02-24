@@ -3,6 +3,7 @@
 
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm';
 import { LITE_API, LITE_ADDR, USDC_ADDR, INBOX_ADDR, ERC20_ABI, LITE_ABI, INBOX_ABI, getAuthToken, setAuthToken, authenticatedFetch, updateNavBtn, switchNetwork, setPollCancelFlag, waitForBackendStateChange } from '../common/base_common.js';
+import { initWalletUx, ensureMetaMaskInstalled, handleWalletReject } from "../common/wallet_ux.js";
 // 公共逻辑来自 base_common：统一配置、鉴权请求、网络切换、导航按钮状态。
 // 当前文件保留页面专属流程，便于后续继续拆分到更细的业务模块。
 
@@ -31,6 +32,17 @@ async function updateWalletBalance() {
 
 
 async function connect() {
+  if (
+    !ensureMetaMaskInstalled({
+      statusEl,
+      connectBtn,
+      bridgeUI,
+      flowLabel: "the pay/receiving flow",
+    })
+  ) {
+    return;
+  }
+
   try {
     const network = await provider.getNetwork();
     if (network.chainId !== 8453n) {
@@ -73,6 +85,9 @@ async function connect() {
       }
     } catch (loginErr) {
       console.error(loginErr);
+      if (handleWalletReject(loginErr, () => connect())) {
+        return;
+      }
       showStatus("Login failed: " + loginErr.message, "error");
       return;
     }
@@ -97,6 +112,9 @@ async function connect() {
 
   } catch (err) {
     console.error(err);
+    if (handleWalletReject(err, () => connect())) {
+      return;
+    }
     showStatus("Connection failed: " + err.message, "error");
   }
 }
@@ -176,106 +194,124 @@ function setUIState(step) {
 }
 
 async function handleAction() {
-  const amount = amountInput.value;
-  if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
-    showStatus("Please enter a valid amount", "error");
-    return;
-  }
-
-  const parsedAmount = ethers.parseUnits(amount, decimals);
-
-  const allowance = await usdcContract.allowance(account, INBOX_ADDR);
-  console.log(allowance);
-  console.log(parsedAmount);
-
-  if (allowance < parsedAmount) {
-    showStatus("Approving USDC...", "info");
-    setBtnLoading(true);
-    const tx = await usdcContract.approve(INBOX_ADDR, parsedAmount);
-    await tx.wait();
-    showStatus("Approval successful!", "success");
-    setUIState(2);
-    setBtnLoading(false);
-  } else {
-    showStatus("Fetching current wallet state...", "info");
-    setBtnLoading(true);
-    const previousBalance = await updateWalletBalance();
-
-    showStatus("Confirming transaction in wallet...", "info");
-    console.log(parsedAmount);
-    let receipt = null;
-    try {
-      const tx = await inboxContract.sendFund(
-        parsedAmount
-      );
-
-      showStatus("Waiting for confirmation...", "info");
-      [receipt] = await Promise.all([
-        tx.wait().catch(() => null),
-        waitForBackendStateChange(
-          updateWalletBalance,
-          previousBalance,
-          showStatus,
-          300000,
-          "usdcBalance",
-        ).catch(() => null),
-      ]);
-    } catch (txErr) {
-      const errMsg = txErr.message || txErr.toString();
-      if (errMsg.includes("nonce") || errMsg.includes("BAD_DATA")) {
-        showStatus(
-          "Wallet reported parsing issue, but proceeding with balance confirmation...",
-          "warning",
-        );
-        await waitForBackendStateChange(
-          updateWalletBalance,
-          previousBalance,
-          showStatus,
-          300000,
-          "usdcBalance",
-        ).catch(() => null);
-      } else {
-        throw txErr;
-      }
+  try {
+    const amount = amountInput.value;
+    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+      showStatus("Please enter a valid amount", "error");
+      return;
     }
 
-    let txNo = null;
-    if (receipt) {
-      for (const log of receipt.logs) {
-        if (log.address.toLowerCase() === INBOX_ADDR.toLowerCase()) {
-          try {
-            const parsed = inboxContract.interface.parseLog(log);
-            if (parsed && parsed.name === 'InboxSend') {
-              txNo = parsed.args.txNo;
-              console.log("Found txNo:", txNo.toString());
-              break;
+    const parsedAmount = ethers.parseUnits(amount, decimals);
+
+    const allowance = await usdcContract.allowance(account, INBOX_ADDR);
+    console.log(allowance);
+    console.log(parsedAmount);
+
+    if (allowance < parsedAmount) {
+      showStatus("Approving USDC...", "info");
+      setBtnLoading(true);
+      const tx = await usdcContract.approve(INBOX_ADDR, parsedAmount);
+      await tx.wait();
+      showStatus("Approval successful!", "success");
+      setUIState(2);
+      setBtnLoading(false);
+    } else {
+      showStatus("Fetching current wallet state...", "info");
+      setBtnLoading(true);
+      const previousBalance = await updateWalletBalance();
+
+      showStatus("Confirming transaction in wallet...", "info");
+      console.log(parsedAmount);
+      let receipt = null;
+      try {
+        const tx = await inboxContract.sendFund(
+          parsedAmount
+        );
+
+        showStatus("Waiting for confirmation...", "info");
+        [receipt] = await Promise.all([
+          tx.wait().catch(() => null),
+          waitForBackendStateChange(
+            updateWalletBalance,
+            previousBalance,
+            showStatus,
+            300000,
+            "usdcBalance",
+          ).catch(() => null),
+        ]);
+      } catch (txErr) {
+        const errMsg = txErr.message || txErr.toString();
+        if (errMsg.includes("nonce") || errMsg.includes("BAD_DATA")) {
+          showStatus(
+            "Wallet reported parsing issue, but proceeding with balance confirmation...",
+            "warning",
+          );
+          await waitForBackendStateChange(
+            updateWalletBalance,
+            previousBalance,
+            showStatus,
+            300000,
+            "usdcBalance",
+          ).catch(() => null);
+        } else {
+          throw txErr;
+        }
+      }
+
+      let txNo = null;
+      if (receipt) {
+        for (const log of receipt.logs) {
+          if (log.address.toLowerCase() === INBOX_ADDR.toLowerCase()) {
+            try {
+              const parsed = inboxContract.interface.parseLog(log);
+              if (parsed && parsed.name === 'InboxSend') {
+                txNo = parsed.args.txNo;
+                console.log("Found txNo:", txNo.toString());
+                break;
+              }
+            } catch (e) {
+              // Not our event or parse error, skip
             }
-          } catch (e) {
-            // Not our event or parse error, skip
           }
         }
       }
-    }
 
-    await updateBalance();
-    if (txNo) {
-      showStatus(`Payment successful! txNo: ${txNo.toString()}`, "success");
-    } else {
-      showStatus("Payment successful!", "success");
-    }
-    setUIState(3);
-    amountInput.value = "";
+      await updateBalance();
+      if (txNo) {
+        showStatus(`Payment successful! txNo: ${txNo.toString()}`, "success");
+      } else {
+        showStatus("Payment successful!", "success");
+      }
+      setUIState(3);
+      amountInput.value = "";
 
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setBtnLoading(false, false);
-    setUIState(1);
-    checkAllowance();
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      setBtnLoading(false, false);
+      setUIState(1);
+      checkAllowance();
+    }
+  } catch (err) {
+    console.error("Action failed:", err);
+    if (handleWalletReject(err, () => handleAction())) {
+      setBtnLoading(false);
+      return;
+    }
+    showStatus(err.reason || err.message || "Transaction failed", "error");
+    setBtnLoading(false);
   }
 }
 
-function showStatus(msg, type) {
-  statusEl.innerText = msg;
-  statusEl.className = type === 'error' ? 'error-msg' : (type === 'success' ? 'success-msg' : 'info-msg');
+function showStatus(msg, type, allowHtml = false) {
+  if (allowHtml) {
+    statusEl.innerHTML = msg;
+  } else {
+    statusEl.innerText = msg;
+  }
+  statusEl.className = type === 'error'
+    ? 'error-msg'
+    : (type === 'success'
+      ? 'success-msg'
+      : (type === 'warning' ? 'warning-msg' : 'info-msg'));
 }
 
 function setBtnLoading(loading, shouldRefreshState = true) {
@@ -339,8 +375,16 @@ async function checkLoginStatus() {
 }
 
 async function init() {
-  if (typeof window.ethereum === 'undefined') {
-    showStatus("Please install MetaMask", "error");
+  initWalletUx();
+
+  if (
+    !ensureMetaMaskInstalled({
+      statusEl,
+      connectBtn,
+      bridgeUI,
+      flowLabel: "the pay/receiving flow",
+    })
+  ) {
     return;
   }
 

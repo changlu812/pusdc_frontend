@@ -257,6 +257,10 @@
             color: var(--text-dim);
         }
 
+        .warning-msg {
+            color: #f59e0b;
+        }
+
         .loader {
             width: 18px;
             height: 18px;

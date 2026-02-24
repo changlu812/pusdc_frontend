@@ -3,6 +3,7 @@
 
 import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm';
 import { LITE_API, LITE_ADDR, USDC_ADDR, INBOX_ADDR, ERC20_ABI, LITE_ABI, INBOX_ABI, getAuthToken, setAuthToken, authenticatedFetch, updateNavBtn, switchNetwork } from '../common/base_common.js';
+import { initWalletUx, ensureMetaMaskInstalled, handleWalletReject } from "../common/wallet_ux.js";
 // 公共逻辑来自 base_common：统一配置、鉴权请求、网络切换、导航按钮状态。
 // 当前文件保留页面专属流程，便于后续继续拆分到更细的业务模块。
 
@@ -23,6 +24,17 @@ const inboxBalanceEl = document.getElementById('claimableBalance');
 
 
 async function connect() {
+  if (
+    !ensureMetaMaskInstalled({
+      statusEl,
+      connectBtn,
+      bridgeUI,
+      flowLabel: "the inbox accept flow",
+    })
+  ) {
+    return;
+  }
+
   try {
     const network = await provider.getNetwork();
     if (network.chainId !== 8453n) {
@@ -59,6 +71,9 @@ async function connect() {
       }
     } catch (e) {
       console.error(e);
+      if (handleWalletReject(e, () => connect())) {
+        return;
+      }
       showStatus("Login failed: " + e.message, "error");
       return;
     }
@@ -80,6 +95,9 @@ async function connect() {
     updateBalance();
   } catch (err) {
     console.error(err);
+    if (handleWalletReject(err, () => connect())) {
+      return;
+    }
     showStatus("Connection failed: " + err.message, "error");
   }
 }
@@ -172,59 +190,64 @@ async function handleAction() {
     if (!account) return;
   }
 
-  // try {
-  // showStatus("Fetching current privacy state...", "info");
-  setBtnLoading(true);
-  const otp = document.getElementById("otpInput").value.trim();
+  try {
+    // showStatus("Fetching current privacy state...", "info");
+    setBtnLoading(true);
+    const otp = document.getElementById("otpInput").value.trim();
 
-  if (otp.length !== 6 || isNaN(otp)) {
-    showStatus("Enter the 6-digit code", "error");
+    if (otp.length !== 6 || isNaN(otp)) {
+      showStatus("Enter the 6-digit code", "error");
+      setBtnLoading(false);
+      return;
+    }
+
+    showStatus("Verifying OTP...", "info");
+    const urlParams = new URLSearchParams(window.location.search);
+    const txNo = urlParams.get('tx_no');
+    const credential = urlParams.get('credential');
+
+    const response = await fetch(`${LITE_API}/api/collect_fund`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tx_no: txNo,
+        credential: credential,
+        otp: otp,
+        address: account,
+      }),
+    });
+
+    const data = await response.json();
+    if (data.status === "error") {
+      showStatus("OTP Verified Failed!", "error");
+    } else {
+      showStatus("OTP Verified Success!", "success");
+    }
+
+    const inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
+    console.log(txNo, account, 0, data.signature);
+    const tx = await inboxContract.acceptFund(txNo, account, 0, data.signature);
+    await tx.wait();
+    showStatus("Transfer successful!", "success");
+    setUIState(true);
     setBtnLoading(false);
-    return;
+    updateBalance();
+
+    showStatus("Confirming transaction in wallet...", "info");
+    // ... rest of transaction logic ...
+
+    setUIState(true);
+    setBtnLoading(false);
+    updateBalance();
+  } catch (err) {
+    console.error(err);
+    if (handleWalletReject(err, () => handleAction())) {
+      setBtnLoading(false);
+      return;
+    }
+    showStatus(err.message || "Transfer failed", "error");
+    setBtnLoading(false);
   }
-
-  // try {
-  showStatus("Verifying OTP...", "info");
-  const urlParams = new URLSearchParams(window.location.search);
-  const txNo = urlParams.get('tx_no');
-  const credential = urlParams.get('credential');
-
-  // We'll use a new endpoint or reuse current one if possible
-  // For now, let's assume we need to verify OTP for this tx
-  const response = await fetch(`${LITE_API}/api/collect_fund`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      tx_no: txNo,
-      credential: credential,
-      otp: otp,
-      address: account,
-    }),
-  });
-
-  const data = await response.json();
-  if (data.status === "error") {
-    showStatus("OTP Verified Failed!", "error");
-  } else {
-    showStatus("OTP Verified Success!", "success");
-  }
-
-  const inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
-  console.log(txNo, account, 0, data.signature);
-  const tx = await inboxContract.acceptFund(txNo, account, 0, data.signature);
-  await tx.wait();
-  showStatus("Transfer successful!", "success");
-  setUIState(true);
-  setBtnLoading(false);
-  updateBalance();
-
-
-  showStatus("Confirming transaction in wallet...", "info");
-  // ... rest of transaction logic ...
-
-  setUIState(true);
-  setBtnLoading(false);
-  updateBalance();
   // } catch (err) {
   //   console.error(err);
   //   showStatus(err.message || "Transfer failed", "error");
@@ -283,8 +306,16 @@ async function checkLoginStatus() {
 }
 
 async function init() {
-  if (typeof window.ethereum === 'undefined') {
-    showStatus("Please install MetaMask", "error");
+  initWalletUx();
+
+  if (
+    !ensureMetaMaskInstalled({
+      statusEl,
+      connectBtn,
+      bridgeUI,
+      flowLabel: "the inbox accept flow",
+    })
+  ) {
     return;
   }
 
@@ -312,4 +343,3 @@ async function init() {
 }
 
 init();
-
