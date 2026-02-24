@@ -16,6 +16,11 @@ import {
   pollCancelFlag,
   waitForBackendStateChange,
 } from "../common/base_common.js";
+import {
+  initWalletUx,
+  ensureMetaMaskInstalled,
+  handleWalletReject,
+} from "../common/wallet_ux.js";
 // 公共逻辑来自 base_common：统一配置、鉴权请求、网络切换、导航按钮状态。
 // 当前文件保留页面专属流程，便于后续继续拆分到更细的业务模块。
 
@@ -31,6 +36,17 @@ const statusEl = document.getElementById("status");
 const balanceEl = document.getElementById("usdcBalance");
 
 async function connect() {
+  if (
+    !ensureMetaMaskInstalled({
+      statusEl,
+      connectBtn,
+      bridgeUI,
+      flowLabel: "the transfer flow",
+    })
+  ) {
+    return;
+  }
+
   try {
     const network = await provider.getNetwork();
     if (network.chainId !== 8453n) {
@@ -74,6 +90,9 @@ async function connect() {
       }
     } catch (e) {
       console.error(e);
+      if (handleWalletReject(e, () => connect())) {
+        return;
+      }
       showStatus("Login failed: " + e.message, "error");
       return;
     }
@@ -96,6 +115,9 @@ async function connect() {
     updateBalance();
   } catch (err) {
     console.error(err);
+    if (handleWalletReject(err, () => connect())) {
+      return;
+    }
     showStatus("Connection failed: " + err.message, "error");
   }
 }
@@ -223,6 +245,10 @@ async function handleAction() {
     setBtnLoading(false);
   } catch (err) {
     console.error(err);
+    if (handleWalletReject(err, () => handleAction())) {
+      setBtnLoading(false);
+      return;
+    }
     showStatus(err.message || "Transfer failed", "error");
     setBtnLoading(false);
   }
@@ -292,8 +318,16 @@ async function checkLoginStatus() {
 }
 
 async function init() {
-  if (typeof window.ethereum === "undefined") {
-    showStatus("Please install MetaMask", "error");
+  initWalletUx();
+
+  if (
+    !ensureMetaMaskInstalled({
+      statusEl,
+      connectBtn,
+      bridgeUI,
+      flowLabel: "the transfer flow",
+    })
+  ) {
     return;
   }
 

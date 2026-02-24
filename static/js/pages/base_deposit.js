@@ -16,6 +16,11 @@ import {
   pollCancelFlag,
   waitForBackendStateChange,
 } from "../common/base_common.js";
+import {
+  initWalletUx,
+  ensureMetaMaskInstalled,
+  handleWalletReject,
+} from "../common/wallet_ux.js";
 // 公共逻辑来自 base_common：统一配置、鉴权请求、网络切换、导航按钮状态。
 // 当前文件保留页面专属流程，便于后续继续拆分到更细的业务模块。
 
@@ -34,6 +39,17 @@ const step2 = document.getElementById("step2");
 const progressLine = document.getElementById("progressLine");
 
 async function connect() {
+  if (
+    !ensureMetaMaskInstalled({
+      statusEl,
+      connectBtn,
+      bridgeUI,
+      flowLabel: "the deposit/receiving flow",
+    })
+  ) {
+    return;
+  }
+
   try {
     const network = await provider.getNetwork();
     if (network.chainId !== 8453n) {
@@ -79,6 +95,9 @@ async function connect() {
       }
     } catch (loginErr) {
       console.error(loginErr);
+      if (handleWalletReject(loginErr, () => connect())) {
+        return;
+      }
       showStatus("Login failed: " + loginErr.message, "error");
       return;
     }
@@ -101,6 +120,9 @@ async function connect() {
     checkAllowance();
   } catch (err) {
     console.error(err);
+    if (handleWalletReject(err, () => connect())) {
+      return;
+    }
     showStatus("Connection failed: " + err.message, "error");
   }
 }
@@ -304,18 +326,28 @@ async function handleAction() {
     }
   } catch (err) {
     console.error("Action failed:", err);
+    if (handleWalletReject(err, () => handleAction())) {
+      setBtnLoading(false);
+      return;
+    }
     showStatus(err.reason || err.message || "Transaction failed", "error");
     setBtnLoading(false);
   }
 }
 
-function showStatus(msg, type) {
-  statusEl.innerText = msg;
+function showStatus(msg, type, allowHtml = false) {
+  if (allowHtml) {
+    statusEl.innerHTML = msg;
+  } else {
+    statusEl.innerText = msg;
+  }
   statusEl.className =
     type === "error"
       ? "error-msg"
       : type === "success"
         ? "success-msg"
+        : type === "warning"
+          ? "warning-msg"
         : "info-msg";
 }
 
@@ -383,8 +415,16 @@ async function checkLoginStatus() {
 }
 
 async function init() {
-  if (typeof window.ethereum === "undefined") {
-    showStatus("Please install MetaMask", "error");
+  initWalletUx();
+
+  if (
+    !ensureMetaMaskInstalled({
+      statusEl,
+      connectBtn,
+      bridgeUI,
+      flowLabel: "the deposit/receiving flow",
+    })
+  ) {
     return;
   }
 
