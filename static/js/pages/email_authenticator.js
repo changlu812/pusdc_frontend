@@ -66,9 +66,37 @@ function showOTPStep(email, secret) {
                 <input type="text" id="otpInput" class="otp-input" maxlength="6" placeholder="000000" inputmode="numeric">
             </div>
 
-            <button id="verifyOtpBtn" class="btn" style="width: 100%; font-weight: 700;">Scan with Google Authenticator & Verify</button>
+            <button id="verifyOtpBtn" class="btn" style="width: 100%; font-weight: 700;">Scan with Authenticator & Verify</button>
             
             <div id="otpStatus" style="margin-top: 16px; font-size: 14px; min-height: 20px; font-weight: 500;"></div>
+
+            <div class="auth-apps">
+                <div class="auth-apps-title">New to 2FA? Get an app</div>
+                <div class="auth-links">
+                    <div class="auth-group">
+                        <div class="auth-group-label">Google Authenticator</div>
+                        <div class="store-links">
+                            <a href="https://apps.apple.com/us/app/google-authenticator/id388497605" target="_blank" class="auth-link">
+                                App Store
+                            </a>
+                            <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2" target="_blank" class="auth-link">
+                                Play Store
+                            </a>
+                        </div>
+                    </div>
+                    <div class="auth-group">
+                        <div class="auth-group-label">Microsoft Authenticator</div>
+                        <div class="store-links">
+                            <a href="https://apps.apple.com/us/app/microsoft-authenticator/id983156458" target="_blank" class="auth-link">
+                                App Store
+                            </a>
+                            <a href="https://play.google.com/store/apps/details?id=com.azure.authenticator" target="_blank" class="auth-link">
+                                Play Store
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 

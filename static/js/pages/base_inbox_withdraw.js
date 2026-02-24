@@ -18,6 +18,11 @@ import {
   setPollCancelFlag,
   waitForBackendStateChange,
 } from "../common/base_common.js";
+import {
+  initWalletUx,
+  ensureMetaMaskInstalled,
+  handleWalletReject,
+} from "../common/wallet_ux.js";
 
 let provider, signer, account;
 let usdcContract, inboxContract, liteContract;
@@ -32,6 +37,17 @@ const balanceEl = document.getElementById("usdcBalance");
 const inboxBalanceEl = document.getElementById("claimableBalance");
 
 async function connect() {
+  if (
+    !ensureMetaMaskInstalled({
+      statusEl,
+      connectBtn,
+      bridgeUI,
+      flowLabel: "the inbox withdraw flow",
+    })
+  ) {
+    return;
+  }
+
   try {
     const network = await provider.getNetwork();
     if (network.chainId !== 8453n) {
@@ -77,6 +93,9 @@ async function connect() {
       }
     } catch (loginErr) {
       console.error(loginErr);
+      if (handleWalletReject(loginErr, () => connect())) {
+        return;
+      }
       showStatus("Login failed: " + loginErr.message, "error");
       return;
     }
@@ -99,6 +118,9 @@ async function connect() {
     updateBalance();
   } catch (err) {
     console.error(err);
+    if (handleWalletReject(err, () => connect())) {
+      return;
+    }
     showStatus("Connection failed: " + err.message, "error");
   }
 }
@@ -181,6 +203,10 @@ async function handleAction() {
     setUIState(1);
   } catch (err) {
     console.error(err);
+    if (handleWalletReject(err, () => handleAction())) {
+      setBtnLoading(false);
+      return;
+    }
     showStatus(err.reason || "Transaction failed", "error");
     setBtnLoading(false);
   }
@@ -253,8 +279,16 @@ async function checkLoginStatus() {
 }
 
 async function init() {
-  if (typeof window.ethereum === "undefined") {
-    showStatus("Please install MetaMask", "error");
+  initWalletUx();
+
+  if (
+    !ensureMetaMaskInstalled({
+      statusEl,
+      connectBtn,
+      bridgeUI,
+      flowLabel: "the inbox withdraw flow",
+    })
+  ) {
     return;
   }
 
