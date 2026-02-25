@@ -1,25 +1,39 @@
 // Extracted from static/base_outgoing_funds.html.
 // Keep page-specific bootstrap logic here; move shared helpers to static/js/common/.
 
-import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm';
-import { LITE_API, LITE_ADDR, USDC_ADDR, INBOX_ADDR, ERC20_ABI, LITE_ABI, INBOX_ABI, getAuthToken, setAuthToken, authenticatedFetch, updateNavBtn, switchNetwork } from '../common/base_common.js';
-import { initWalletUx, ensureMetaMaskInstalled, handleWalletReject } from "../common/wallet_ux.js";
+import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm";
+import {
+  LITE_API,
+  LITE_ADDR,
+  USDC_ADDR,
+  INBOX_ADDR,
+  ERC20_ABI,
+  LITE_ABI,
+  INBOX_ABI,
+  getAuthToken,
+  setAuthToken,
+  authenticatedFetch,
+  updateNavBtn,
+  switchNetwork,
+} from "../common/base_common.js";
+import {
+  initWalletUx,
+  ensureMetaMaskInstalled,
+  handleWalletReject,
+} from "../common/wallet_ux.js";
 // 公共逻辑来自 base_common：统一配置、鉴权请求、网络切换、导航按钮状态。
 // 当前文件保留页面专属流程，便于后续继续拆分到更细的业务模块。
-
 
 let provider, signer, account;
 let usdcContract, liteContract, inboxContract;
 let decimals = 6;
 
-
-const connectBtn = document.getElementById('connectBtn');
-const bridgeUI = document.getElementById('bridgeUI');
+const connectBtn = document.getElementById("connectBtn");
+const bridgeUI = document.getElementById("bridgeUI");
 // const actionBtn = document.getElementById('actionBtn');
-const amountInput = document.getElementById('amount');
-const statusEl = document.getElementById('status');
-const balanceEl = document.getElementById('usdcBalance');
-
+const amountInput = document.getElementById("amount");
+const statusEl = document.getElementById("status");
+const balanceEl = document.getElementById("usdcBalance");
 
 async function connect() {
   if (
@@ -39,7 +53,10 @@ async function connect() {
       showStatus("Switching to Base Mainnet...", "info");
       const switched = await switchNetwork();
       if (!switched) {
-        showStatus("Please switch to Base Mainnet (Chain ID 8453) manually", "error");
+        showStatus(
+          "Please switch to Base Mainnet (Chain ID 8453) manually",
+          "error",
+        );
         return;
       }
       provider = new ethers.BrowserProvider(window.ethereum);
@@ -56,9 +73,13 @@ async function connect() {
       showStatus("Please sign login message...", "info");
       const signature = await signer.signMessage(msg);
       const loginRes = await fetch(`${LITE_API}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: account, signature, timestamp: timestamp.toString() })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          address: account,
+          signature,
+          timestamp: timestamp.toString(),
+        }),
       });
       const loginData = await loginRes.json();
       if (loginRes.ok && loginData.token) {
@@ -83,12 +104,14 @@ async function connect() {
     try {
       decimals = await usdcContract.decimals();
     } catch (e) {
-      console.warn("Could not fetch decimals, using default 18. This usually happens if the address is not a contract.");
+      console.warn(
+        "Could not fetch decimals, using default 18. This usually happens if the address is not a contract.",
+      );
       decimals = 6;
     }
 
-    connectBtn.style.display = 'none';
-    bridgeUI.style.display = 'block';
+    connectBtn.style.display = "none";
+    bridgeUI.style.display = "block";
     updateNavBtn(true, account);
     updateBalance();
     fetchOutgoingFunds();
@@ -109,19 +132,22 @@ async function updateBalance() {
 
     // Hidden Balance
     const privacyBalCipher = await liteContract.privacyBalances(account);
-    if (!privacyBalCipher || privacyBalCipher === '0x') {
-      document.getElementById('privacyBalance').innerText = '0.00 PUSDC';
+    if (!privacyBalCipher || privacyBalCipher === "0x") {
+      document.getElementById("privacyBalance").innerText = "0.00 PUSDC";
     } else {
-      const resp = await authenticatedFetch(`${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`);
+      const resp = await authenticatedFetch(
+        `${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`,
+      );
       const data = await resp.json();
-      if (data.status === 'ok') {
-        document.getElementById('privacyBalance').innerText = `${ethers.formatUnits(data.balance.toString(), decimals)} PUSDC`;
+      if (data.status === "ok") {
+        document.getElementById("privacyBalance").innerText =
+          `${ethers.formatUnits(data.balance.toString(), decimals)} PUSDC`;
       }
     }
 
     // Claimable Balance
     const inboxBalance = await inboxContract.inboxBalances(account);
-    const claimableBalanceEl = document.getElementById('claimableBalance');
+    const claimableBalanceEl = document.getElementById("claimableBalance");
     if (claimableBalanceEl) {
       claimableBalanceEl.innerText = `${ethers.formatUnits(inboxBalance.toString(), decimals)} USDC`;
     }
@@ -142,13 +168,13 @@ async function updateBalance() {
 
 async function handleAction() {
   const amount = amountInput.value;
-  const toAddr = document.getElementById('toAddr').value;
+  const toAddr = document.getElementById("toAddr").value;
 
   if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
     showStatus("Please enter a valid amount", "error");
     return;
   }
-  if (!toAddr.includes('@')) {
+  if (!toAddr.includes("@")) {
     showStatus("Please enter an email address", "error");
     return;
   }
@@ -203,7 +229,12 @@ async function handleAction() {
 
 function showStatus(msg, type) {
   statusEl.innerText = msg;
-  statusEl.className = type === 'error' ? 'error-msg' : (type === 'success' ? 'success-msg' : 'info-msg');
+  statusEl.className =
+    type === "error"
+      ? "error-msg"
+      : type === "success"
+        ? "success-msg"
+        : "info-msg";
 }
 
 // function setBtnLoading(loading) {
@@ -215,14 +246,14 @@ function showStatus(msg, type) {
 //   }
 // }
 
-connectBtn.addEventListener('click', connect);
+connectBtn.addEventListener("click", connect);
 // actionBtn.addEventListener('click', handleAction);
 
 async function fetchOutgoingFunds() {
   try {
     const response = await authenticatedFetch(`${LITE_API}/api/outgoing_funds`);
     const data = await response.json();
-    if (data.status === 'ok') {
+    if (data.status === "ok") {
       renderOutgoingFunds(data.result);
     }
   } catch (err) {
@@ -231,7 +262,7 @@ async function fetchOutgoingFunds() {
 }
 
 function renderOutgoingFunds(funds) {
-  const container = document.getElementById('bridgeUI');
+  const container = document.getElementById("bridgeUI");
   let tableHtml = `
     <div style="margin-top: 32px;">
       <h3 style="margin-bottom: 16px; font-size: 18px;">Outgoing Funds History</h3>
@@ -244,6 +275,7 @@ function renderOutgoingFunds(funds) {
               <th>Email</th>
               <th>Amount</th>
               <th>Date</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
@@ -252,18 +284,25 @@ function renderOutgoingFunds(funds) {
   if (funds.length === 0) {
     tableHtml += `
       <tr>
-        <td colspan="4" style="padding: 24px; text-align: center; color: var(--text-dim); border-bottom: none;">
+        <td colspan="5" style="padding: 24px; text-align: center; color: var(--text-dim); border-bottom: none;">
           No outgoing funds found
         </td>
       </tr>
     `;
   } else {
-    funds.forEach(fund => {
+    funds.forEach((fund) => {
       const date = new Date(fund.created_at).toLocaleDateString();
       // Assuming amount is stored, if not we might need to fetch or display differently
       // Since the DB schema has amount but it might be null based on previous steps, let's handle gracefully
-      const amountDisplay = fund.amount ? `${ethers.formatUnits(fund.amount, decimals)} USDC` : '-';
-      const emailDisplay = fund.email ? fund.email : '-';
+      const amountDisplay = fund.amount
+        ? `${ethers.formatUnits(fund.amount, decimals)} USDC`
+        : "-";
+      const emailDisplay = fund.email ? fund.email : "-";
+      
+      // 判断状态
+      const isCompleted = !!fund.email;
+      const statusText = isCompleted ? "Completed" : "Pending";
+      const statusClass = isCompleted ? "status-completed" : "status-pending";
 
       tableHtml += `
         <tr onclick="window.location.href='base_email.html?tx_no=${fund.tx_no}'">
@@ -271,6 +310,7 @@ function renderOutgoingFunds(funds) {
           <td>${emailDisplay}</td>
           <td>${amountDisplay}</td>
           <td style="color: var(--text-dim);">${date}</td>
+          <td><span class="status-badge ${statusClass}">${statusText}</span></td>
         </tr>
       `;
     });
@@ -284,13 +324,13 @@ function renderOutgoingFunds(funds) {
   `;
 
   // Append or replace
-  const existingTable = document.getElementById('outgoingFundsTable');
+  const existingTable = document.getElementById("outgoingFundsTable");
   if (existingTable) {
     existingTable.remove();
   }
 
-  const tableDiv = document.createElement('div');
-  tableDiv.id = 'outgoingFundsTable';
+  const tableDiv = document.createElement("div");
+  tableDiv.id = "outgoingFundsTable";
   tableDiv.innerHTML = tableHtml;
   container.appendChild(tableDiv);
 }
@@ -314,10 +354,14 @@ async function checkLoginStatus() {
       liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
       inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
 
-      try { decimals = await usdcContract.decimals(); } catch (e) { decimals = 6; }
+      try {
+        decimals = await usdcContract.decimals();
+      } catch (e) {
+        decimals = 6;
+      }
 
-      connectBtn.style.display = 'none';
-      bridgeUI.style.display = 'block';
+      connectBtn.style.display = "none";
+      bridgeUI.style.display = "block";
       showStatus("Restored Session", "success");
       updateNavBtn(true, account);
       updateBalance();
@@ -325,7 +369,7 @@ async function checkLoginStatus() {
     }
   } catch (err) {
     console.log("Session check failed", err);
-    setAuthToken('');
+    setAuthToken("");
   }
 }
 
@@ -343,11 +387,11 @@ async function init() {
     return;
   }
 
-  const navActionBtn = document.getElementById('navActionBtn');
+  const navActionBtn = document.getElementById("navActionBtn");
   if (navActionBtn) {
-    navActionBtn.addEventListener('click', () => {
-      if (navActionBtn.dataset.loggedIn === 'true') {
-        setAuthToken('');
+    navActionBtn.addEventListener("click", () => {
+      if (navActionBtn.dataset.loggedIn === "true") {
+        setAuthToken("");
         location.reload();
       } else {
         connect();
@@ -360,6 +404,3 @@ async function init() {
 }
 
 init();
-
-
-
