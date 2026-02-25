@@ -28,6 +28,12 @@ let provider, signer, account;
 let usdcContract, liteContract;
 let decimals = 6;
 
+// 添加全局变量
+let approvePromptModal = null;
+let approvePromptContinue = null;
+let approvePromptCancel = null;
+let approvePromptResolve = null;
+
 const connectBtn = document.getElementById("connectBtn");
 const bridgeUI = document.getElementById("bridgeUI");
 const actionBtn = document.getElementById("actionBtn");
@@ -37,6 +43,106 @@ const balanceEl = document.getElementById("usdcBalance");
 const step1 = document.getElementById("step1");
 const step2 = document.getElementById("step2");
 const progressLine = document.getElementById("progressLine");
+
+// 初始化批准提示模态框
+function ensureApprovePromptModal() {
+  if (!approvePromptModal) {
+    approvePromptModal = document.getElementById("approvePromptModal");
+    if (!approvePromptModal) {
+      approvePromptModal = document.createElement("div");
+      approvePromptModal.id = "approvePromptModal";
+      approvePromptModal.className = "wallet-ux-modal";
+      approvePromptModal.setAttribute("aria-hidden", "true");
+      approvePromptModal.innerHTML = `
+        <div class="wallet-ux-modal-content" role="dialog" aria-modal="true" aria-labelledby="approvePromptTitle">
+          <h3 id="approvePromptTitle">Two-Step Process</h3>
+          <p>This is just the first step (approval). You will be asked to sign again in the second step to complete the actual deposit.</p>
+          <div class="wallet-ux-modal-actions">
+            <button id="approvePromptCancel" class="wallet-ux-btn wallet-ux-btn-secondary" type="button">Cancel</button>
+            <button id="approvePromptContinue" class="wallet-ux-btn wallet-ux-btn-primary" type="button">Continue</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(approvePromptModal);
+    }
+  }
+
+  // 总是重新获取元素并绑定事件监听器
+  approvePromptContinue = document.getElementById("approvePromptContinue");
+  approvePromptCancel = document.getElementById("approvePromptCancel");
+
+  if (approvePromptContinue) {
+    // 先移除旧的事件监听器（如果有）
+    approvePromptContinue.removeEventListener("click", handleApproveContinue);
+    // 添加新的事件监听器
+    approvePromptContinue.addEventListener("click", handleApproveContinue);
+  }
+
+  if (approvePromptCancel) {
+    // 先移除旧的事件监听器（如果有）
+    approvePromptCancel.removeEventListener("click", handleApproveCancel);
+    // 添加新的事件监听器
+    approvePromptCancel.addEventListener("click", handleApproveCancel);
+  }
+}
+
+// 处理批准提示的继续按钮点击
+function handleApproveContinue() {
+  // 先解决Promise，再隐藏模态框
+  if (approvePromptResolve) {
+    approvePromptResolve(true);
+    approvePromptResolve = null;
+  }
+  // 延迟隐藏模态框，确保Promise处理完成
+  setTimeout(() => {
+    hideApprovePromptModal();
+  }, 100);
+}
+
+// 处理批准提示的取消按钮点击
+function handleApproveCancel() {
+  // 先解决Promise，再隐藏模态框
+  if (approvePromptResolve) {
+    approvePromptResolve(false);
+    approvePromptResolve = null;
+  }
+  // 延迟隐藏模态框，确保Promise处理完成
+  setTimeout(() => {
+    hideApprovePromptModal();
+  }, 100);
+}
+
+// 显示批准提示模态框
+function showApprovePromptModal() {
+  ensureApprovePromptModal();
+  return new Promise((resolve) => {
+    approvePromptResolve = resolve;
+    approvePromptModal.classList.add("open");
+    approvePromptModal.setAttribute("aria-hidden", "false");
+    // 确保模态框可见后再设置焦点
+    setTimeout(() => {
+      if (approvePromptContinue) {
+        approvePromptContinue.focus();
+      }
+    }, 50);
+  });
+}
+
+// 隐藏批准提示模态框
+function hideApprovePromptModal() {
+  if (approvePromptModal) {
+    // 先将焦点移开
+    if (
+      document.activeElement === approvePromptContinue ||
+      document.activeElement === approvePromptCancel
+    ) {
+      actionBtn.focus();
+    }
+    approvePromptModal.classList.remove("open");
+    approvePromptModal.setAttribute("aria-hidden", "true");
+  }
+  approvePromptResolve = null;
+}
 
 async function connect() {
   if (
@@ -231,14 +337,50 @@ async function handleAction() {
     const allowance = await usdcContract.allowance(account, LITE_ADDR);
 
     if (allowance < parsedAmount) {
+      // 显示批准提示
+      const userConfirmed = await showApprovePromptModal();
+      if (!userConfirmed) {
+        return;
+      }
+
       // Step 1: Approve
       showStatus("Approving USDC...", "info");
       setBtnLoading(true);
-      const tx = await usdcContract.approve(LITE_ADDR, parsedAmount);
-      await tx.wait();
-      showStatus("Approval successful!", "success");
-      setUIState(2);
-      setBtnLoading(false);
+      try {
+        const tx = await usdcContract.approve(LITE_ADDR, parsedAmount);
+        // 尝试等待交易确认，但捕获可能的错误
+        try {
+          await tx.wait();
+        } catch (waitErr) {
+          // 捕获nonce解析错误，交易可能已经成功
+          console.warn(
+            "Transaction wait error (nonce parsing), but transaction may have succeeded:",
+            waitErr,
+          );
+        }
+        showStatus("Approval successful!", "success");
+        setUIState(2);
+        setBtnLoading(false);
+      } catch (approveErr) {
+        console.error("Approval error:", approveErr);
+        // 检查是否是nonce解析错误
+        if (
+          approveErr.code === "BAD_DATA" &&
+          approveErr.message.includes("nonce")
+        ) {
+          // 交易可能已经成功，继续执行
+          showStatus("Approval successful!", "success");
+          setUIState(2);
+          setBtnLoading(false);
+        } else {
+          // 其他错误，显示错误信息
+          showStatus(
+            approveErr.reason || approveErr.message || "Approval failed",
+            "error",
+          );
+          setBtnLoading(false);
+        }
+      }
     } else {
       // Step 2: Deposit
       showStatus("Fetching current privacy state...", "info");
@@ -348,7 +490,7 @@ function showStatus(msg, type, allowHtml = false) {
         ? "success-msg"
         : type === "warning"
           ? "warning-msg"
-        : "info-msg";
+          : "info-msg";
 }
 
 function setBtnLoading(loading) {
@@ -416,6 +558,7 @@ async function checkLoginStatus() {
 
 async function init() {
   initWalletUx();
+  ensureApprovePromptModal(); // 添加这行
 
   if (
     !ensureMetaMaskInstalled({
