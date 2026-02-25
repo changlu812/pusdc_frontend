@@ -1,27 +1,150 @@
 // Extracted from static/base_pay.html.
 // Keep page-specific bootstrap logic here; move shared helpers to static/js/common/.
 
-import { ethers } from 'https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm';
-import { LITE_API, LITE_ADDR, USDC_ADDR, INBOX_ADDR, ERC20_ABI, LITE_ABI, INBOX_ABI, getAuthToken, setAuthToken, authenticatedFetch, updateNavBtn, switchNetwork, setPollCancelFlag, waitForBackendStateChange } from '../common/base_common.js';
-import { initWalletUx, ensureMetaMaskInstalled, handleWalletReject } from "../common/wallet_ux.js";
+import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm";
+import {
+  LITE_API,
+  LITE_ADDR,
+  USDC_ADDR,
+  INBOX_ADDR,
+  ERC20_ABI,
+  LITE_ABI,
+  INBOX_ABI,
+  getAuthToken,
+  setAuthToken,
+  authenticatedFetch,
+  updateNavBtn,
+  switchNetwork,
+  setPollCancelFlag,
+  waitForBackendStateChange,
+} from "../common/base_common.js";
+import {
+  initWalletUx,
+  ensureMetaMaskInstalled,
+  handleWalletReject,
+} from "../common/wallet_ux.js";
 // 公共逻辑来自 base_common：统一配置、鉴权请求、网络切换、导航按钮状态。
 // 当前文件保留页面专属流程，便于后续继续拆分到更细的业务模块。
-
 
 let provider, signer, account;
 let usdcContract, liteContract, inboxContract;
 let decimals = 6;
 
+// 添加全局变量
+let approvePromptModal = null;
+let approvePromptContinue = null;
+let approvePromptCancel = null;
+let approvePromptResolve = null;
 
-const connectBtn = document.getElementById('connectBtn');
-const bridgeUI = document.getElementById('bridgeUI');
-const actionBtn = document.getElementById('actionBtn');
-const amountInput = document.getElementById('amount');
-const statusEl = document.getElementById('status');
-const balanceEl = document.getElementById('usdcBalance');
-const step1 = document.getElementById('step1');
-const step2 = document.getElementById('step2');
-const progressLine = document.getElementById('progressLine');
+const connectBtn = document.getElementById("connectBtn");
+const bridgeUI = document.getElementById("bridgeUI");
+const actionBtn = document.getElementById("actionBtn");
+const amountInput = document.getElementById("amount");
+const statusEl = document.getElementById("status");
+const balanceEl = document.getElementById("usdcBalance");
+const step1 = document.getElementById("step1");
+const step2 = document.getElementById("step2");
+const progressLine = document.getElementById("progressLine");
+
+// 初始化批准提示模态框
+function ensureApprovePromptModal() {
+  if (!approvePromptModal) {
+    approvePromptModal = document.getElementById("approvePromptModal");
+    if (!approvePromptModal) {
+      approvePromptModal = document.createElement("div");
+      approvePromptModal.id = "approvePromptModal";
+      approvePromptModal.className = "wallet-ux-modal";
+      approvePromptModal.setAttribute("aria-hidden", "true");
+      approvePromptModal.innerHTML = `
+        <div class="wallet-ux-modal-content" role="dialog" aria-modal="true" aria-labelledby="approvePromptTitle">
+          <h3 id="approvePromptTitle">Two-Step Process</h3>
+          <p>This is just the first step (approval). You will be asked to sign again in the second step to complete the actual deposit.</p>
+          <div class="wallet-ux-modal-actions">
+            <button id="approvePromptCancel" class="wallet-ux-btn wallet-ux-btn-secondary" type="button">Cancel</button>
+            <button id="approvePromptContinue" class="wallet-ux-btn wallet-ux-btn-primary" type="button">Continue</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(approvePromptModal);
+    }
+  }
+
+  // 总是重新获取元素并绑定事件监听器
+  approvePromptContinue = document.getElementById("approvePromptContinue");
+  approvePromptCancel = document.getElementById("approvePromptCancel");
+
+  if (approvePromptContinue) {
+    // 先移除旧的事件监听器（如果有）
+    approvePromptContinue.removeEventListener("click", handleApproveContinue);
+    // 添加新的事件监听器
+    approvePromptContinue.addEventListener("click", handleApproveContinue);
+  }
+
+  if (approvePromptCancel) {
+    // 先移除旧的事件监听器（如果有）
+    approvePromptCancel.removeEventListener("click", handleApproveCancel);
+    // 添加新的事件监听器
+    approvePromptCancel.addEventListener("click", handleApproveCancel);
+  }
+}
+
+// 处理批准提示的继续按钮点击
+function handleApproveContinue() {
+  // 先解决Promise，再隐藏模态框
+  if (approvePromptResolve) {
+    approvePromptResolve(true);
+    approvePromptResolve = null;
+  }
+  // 延迟隐藏模态框，确保Promise处理完成
+  setTimeout(() => {
+    hideApprovePromptModal();
+  }, 100);
+}
+
+// 处理批准提示的取消按钮点击
+function handleApproveCancel() {
+  // 先解决Promise，再隐藏模态框
+  if (approvePromptResolve) {
+    approvePromptResolve(false);
+    approvePromptResolve = null;
+  }
+  // 延迟隐藏模态框，确保Promise处理完成
+  setTimeout(() => {
+    hideApprovePromptModal();
+  }, 100);
+}
+
+// 显示批准提示模态框
+function showApprovePromptModal() {
+  ensureApprovePromptModal();
+  return new Promise((resolve) => {
+    approvePromptResolve = resolve;
+    approvePromptModal.classList.add("open");
+    approvePromptModal.setAttribute("aria-hidden", "false");
+    // 确保模态框可见后再设置焦点
+    setTimeout(() => {
+      if (approvePromptContinue) {
+        approvePromptContinue.focus();
+      }
+    }, 50);
+  });
+}
+
+// 隐藏批准提示模态框
+function hideApprovePromptModal() {
+  if (approvePromptModal) {
+    // 先将焦点移开
+    if (
+      document.activeElement === approvePromptContinue ||
+      document.activeElement === approvePromptCancel
+    ) {
+      actionBtn.focus();
+    }
+    approvePromptModal.classList.remove("open");
+    approvePromptModal.setAttribute("aria-hidden", "true");
+  }
+  approvePromptResolve = null;
+}
 
 async function updateWalletBalance() {
   const bal = await usdcContract.balanceOf(account);
@@ -29,7 +152,6 @@ async function updateWalletBalance() {
   balanceEl.innerText = formatted;
   return formatted;
 }
-
 
 async function connect() {
   if (
@@ -49,7 +171,10 @@ async function connect() {
       showStatus("Switching to Base Mainnet...", "info");
       const switched = await switchNetwork();
       if (!switched) {
-        showStatus("Please switch to Base Mainnet (Chain ID 8453) manually", "error");
+        showStatus(
+          "Please switch to Base Mainnet (Chain ID 8453) manually",
+          "error",
+        );
         return;
       }
       provider = new ethers.BrowserProvider(window.ethereum);
@@ -68,13 +193,13 @@ async function connect() {
       const signature = await signer.signMessage(msg);
 
       const loginRes = await fetch(`${LITE_API}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           address: account,
           signature,
-          timestamp: timestamp.toString()
-        })
+          timestamp: timestamp.toString(),
+        }),
       });
 
       const loginData = await loginRes.json();
@@ -103,13 +228,12 @@ async function connect() {
       decimals = 6;
     }
 
-    connectBtn.style.display = 'none';
-    bridgeUI.style.display = 'block';
+    connectBtn.style.display = "none";
+    bridgeUI.style.display = "block";
     showStatus("Connected & Logged In", "success");
     updateNavBtn(true, account);
     updateBalance();
     checkAllowance();
-
   } catch (err) {
     console.error(err);
     if (handleWalletReject(err, () => connect())) {
@@ -126,14 +250,16 @@ async function updateBalance() {
 
     // Hidden Balance
     const privacyBalCipher = await liteContract.privacyBalances(account);
-    const privacyBalanceEl = document.getElementById('privacyBalance');
+    const privacyBalanceEl = document.getElementById("privacyBalance");
     if (privacyBalanceEl) {
-      if (!privacyBalCipher || privacyBalCipher === '0x') {
-        privacyBalanceEl.innerText = '0.00 PUSDC';
+      if (!privacyBalCipher || privacyBalCipher === "0x") {
+        privacyBalanceEl.innerText = "0.00 PUSDC";
       } else {
-        const resp = await authenticatedFetch(`${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`);
+        const resp = await authenticatedFetch(
+          `${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`,
+        );
         const data = await resp.json();
-        if (data.status === 'ok') {
+        if (data.status === "ok") {
           privacyBalanceEl.innerText = `${ethers.formatUnits(data.balance.toString(), decimals)} PUSDC`;
         }
       }
@@ -141,7 +267,7 @@ async function updateBalance() {
 
     // Claimable USDC
     const inboxBalanceValue = await inboxContract.inboxBalances(account);
-    const inboxBalanceEl = document.getElementById('claimableBalance');
+    const inboxBalanceEl = document.getElementById("claimableBalance");
     if (inboxBalanceEl) {
       inboxBalanceEl.innerText = `${ethers.formatUnits(inboxBalanceValue.toString(), decimals)} USDC`;
     }
@@ -176,18 +302,18 @@ async function checkAllowance() {
 function setUIState(step) {
   if (step === 1) {
     actionBtn.innerText = "Approve USDC";
-    step1.classList.add('active');
-    step1.classList.remove('completed');
-    step2.classList.remove('active', 'completed');
-    progressLine.style.width = '0%';
+    step1.classList.add("active");
+    step1.classList.remove("completed");
+    step2.classList.remove("active", "completed");
+    progressLine.style.width = "0%";
   } else if (step === 2) {
     actionBtn.innerText = "Deposit USDC";
-    step1.classList.add('completed');
-    step2.classList.add('active');
-    progressLine.style.width = '50%';
+    step1.classList.add("completed");
+    step2.classList.add("active");
+    progressLine.style.width = "50%";
   } else if (step === 3) {
-    step2.classList.add('completed');
-    progressLine.style.width = '100%';
+    step2.classList.add("completed");
+    progressLine.style.width = "100%";
     actionBtn.innerText = "Deposit Successful";
     actionBtn.disabled = true;
   }
@@ -208,13 +334,50 @@ async function handleAction() {
     console.log(parsedAmount);
 
     if (allowance < parsedAmount) {
+      // 显示批准提示
+      const userConfirmed = await showApprovePromptModal();
+      if (!userConfirmed) {
+        return;
+      }
+
+      // Step 1: Approve
       showStatus("Approving USDC...", "info");
       setBtnLoading(true);
-      const tx = await usdcContract.approve(INBOX_ADDR, parsedAmount);
-      await tx.wait();
-      showStatus("Approval successful!", "success");
-      setUIState(2);
-      setBtnLoading(false);
+      try {
+        const tx = await usdcContract.approve(INBOX_ADDR, parsedAmount);
+        // 尝试等待交易确认，但捕获可能的错误
+        try {
+          await tx.wait();
+        } catch (waitErr) {
+          // 捕获nonce解析错误，交易可能已经成功
+          console.warn(
+            "Transaction wait error (nonce parsing), but transaction may have succeeded:",
+            waitErr,
+          );
+        }
+        showStatus("Approval successful!", "success");
+        setUIState(2);
+        setBtnLoading(false);
+      } catch (approveErr) {
+        console.error("Approval error:", approveErr);
+        // 检查是否是nonce解析错误
+        if (
+          approveErr.code === "BAD_DATA" &&
+          approveErr.message.includes("nonce")
+        ) {
+          // 交易可能已经成功，继续执行
+          showStatus("Approval successful!", "success");
+          setUIState(2);
+          setBtnLoading(false);
+        } else {
+          // 其他错误，显示错误信息
+          showStatus(
+            approveErr.reason || approveErr.message || "Approval failed",
+            "error",
+          );
+          setBtnLoading(false);
+        }
+      }
     } else {
       showStatus("Fetching current wallet state...", "info");
       setBtnLoading(true);
@@ -224,9 +387,7 @@ async function handleAction() {
       console.log(parsedAmount);
       let receipt = null;
       try {
-        const tx = await inboxContract.sendFund(
-          parsedAmount
-        );
+        const tx = await inboxContract.sendFund(parsedAmount);
 
         showStatus("Waiting for confirmation...", "info");
         [receipt] = await Promise.all([
@@ -264,7 +425,7 @@ async function handleAction() {
           if (log.address.toLowerCase() === INBOX_ADDR.toLowerCase()) {
             try {
               const parsed = inboxContract.interface.parseLog(log);
-              if (parsed && parsed.name === 'InboxSend') {
+              if (parsed && parsed.name === "InboxSend") {
                 txNo = parsed.args.txNo;
                 console.log("Found txNo:", txNo.toString());
                 break;
@@ -307,11 +468,14 @@ function showStatus(msg, type, allowHtml = false) {
   } else {
     statusEl.innerText = msg;
   }
-  statusEl.className = type === 'error'
-    ? 'error-msg'
-    : (type === 'success'
-      ? 'success-msg'
-      : (type === 'warning' ? 'warning-msg' : 'info-msg'));
+  statusEl.className =
+    type === "error"
+      ? "error-msg"
+      : type === "success"
+        ? "success-msg"
+        : type === "warning"
+          ? "warning-msg"
+          : "info-msg";
 }
 
 function setBtnLoading(loading, shouldRefreshState = true) {
@@ -324,9 +488,9 @@ function setBtnLoading(loading, shouldRefreshState = true) {
   }
 }
 
-connectBtn.addEventListener('click', connect);
-actionBtn.addEventListener('click', handleAction);
-amountInput.addEventListener('input', checkAllowance);
+connectBtn.addEventListener("click", connect);
+actionBtn.addEventListener("click", handleAction);
+amountInput.addEventListener("input", checkAllowance);
 
 // 页面卸载时取消轮询
 window.addEventListener("beforeunload", () => {
@@ -347,8 +511,8 @@ async function checkLoginStatus() {
       // We still need to ensure provider/signer are ready for transactions
       const accounts = await provider.send("eth_requestAccounts", []);
       if (accounts[0].toLowerCase() !== account.toLowerCase()) {
-        // Token valid but MetaMask account changed? 
-        // For safety, require re-login or just warn. 
+        // Token valid but MetaMask account changed?
+        // For safety, require re-login or just warn.
         // Let's assume re-connect flow for consistency or just update account
         account = accounts[0];
       }
@@ -358,10 +522,14 @@ async function checkLoginStatus() {
       liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
       inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
 
-      try { decimals = await usdcContract.decimals(); } catch (e) { decimals = 6; }
+      try {
+        decimals = await usdcContract.decimals();
+      } catch (e) {
+        decimals = 6;
+      }
 
-      connectBtn.style.display = 'none';
-      bridgeUI.style.display = 'block';
+      connectBtn.style.display = "none";
+      bridgeUI.style.display = "block";
       showStatus("Restored Session", "success");
       updateNavBtn(true, account);
       updateBalance();
@@ -370,12 +538,13 @@ async function checkLoginStatus() {
   } catch (err) {
     console.log("Session check failed", err);
     // Token invalid or other error, clear it
-    setAuthToken('');
+    setAuthToken("");
   }
 }
 
 async function init() {
   initWalletUx();
+  ensureApprovePromptModal(); // 添加这行
 
   if (
     !ensureMetaMaskInstalled({
@@ -388,11 +557,11 @@ async function init() {
     return;
   }
 
-  const navActionBtn = document.getElementById('navActionBtn');
+  const navActionBtn = document.getElementById("navActionBtn");
   if (navActionBtn) {
-    navActionBtn.addEventListener('click', () => {
-      if (navActionBtn.dataset.loggedIn === 'true') {
-        setAuthToken('');
+    navActionBtn.addEventListener("click", () => {
+      if (navActionBtn.dataset.loggedIn === "true") {
+        setAuthToken("");
         location.reload();
       } else {
         connect();

@@ -78,6 +78,17 @@
     </div>
 
     <script type="module" src="js/pages/base_pay.js"></script>
+
+    <div id="approvePromptModal" class="wallet-ux-modal">
+        <div class="wallet-ux-modal-content" role="dialog" aria-modal="true" aria-labelledby="approvePromptTitle">
+            <h3 id="approvePromptTitle">Two-Step Process</h3>
+            <p>This is just the first step (approval). You will be asked to sign again in the second step to complete the actual deposit.</p>
+            <div class="wallet-ux-modal-actions">
+                <button id="approvePromptCancel" class="wallet-ux-btn wallet-ux-btn-secondary" type="button">Cancel</button>
+                <button id="approvePromptContinue" class="wallet-ux-btn wallet-ux-btn-primary" type="button">Continue</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
