@@ -320,146 +320,146 @@ function setUIState(step) {
 }
 
 async function handleAction() {
-  try {
-    const amount = amountInput.value;
-    if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
-      showStatus("Please enter a valid amount", "error");
+  // try {
+  const amount = amountInput.value;
+  if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+    showStatus("Please enter a valid amount", "error");
+    return;
+  }
+
+  const parsedAmount = ethers.parseUnits(amount, decimals);
+
+  const allowance = await usdcContract.allowance(account, INBOX_ADDR);
+  console.log(allowance);
+  console.log(parsedAmount);
+
+  if (allowance < parsedAmount) {
+    // 显示批准提示
+    const userConfirmed = await showApprovePromptModal();
+    if (!userConfirmed) {
       return;
     }
 
-    const parsedAmount = ethers.parseUnits(amount, decimals);
+    // Step 1: Approve
+    showStatus("Approving USDC...", "info");
+    setBtnLoading(true);
+    // try {
+    try {
+      const tx = await usdcContract.approve(INBOX_ADDR, parsedAmount);
+      // 尝试等待交易确认，但捕获可能的错误
+      await tx.wait();
+    } catch (waitErr) {
+      // 捕获nonce解析错误，交易可能已经成功
+      console.warn(
+        "Transaction wait error (nonce parsing), but transaction may have succeeded:",
+        waitErr,
+      );
+    }
+    showStatus("Approval successful!", "success");
+    setUIState(2);
+    setBtnLoading(false);
+    // } catch (approveErr) {
+    //   console.error("Approval error:", approveErr);
+    //   // 检查是否是nonce解析错误
+    //   if (
+    //     approveErr.code === "BAD_DATA" &&
+    //     approveErr.message.includes("nonce")
+    //   ) {
+    //     // 交易可能已经成功，继续执行
+    //     showStatus("Approval successful!", "success");
+    //     setUIState(2);
+    //     setBtnLoading(false);
+    //   } else {
+    //     // 其他错误，显示错误信息
+    //     showStatus(
+    //       approveErr.reason || approveErr.message || "Approval failed",
+    //       "error",
+    //     );
+    //     setBtnLoading(false);
+    //   }
+    // }
+  } else {
+    showStatus("Fetching current wallet state...", "info");
+    setBtnLoading(true);
+    const previousBalance = await updateWalletBalance();
 
-    const allowance = await usdcContract.allowance(account, INBOX_ADDR);
-    console.log(allowance);
+    showStatus("Confirming transaction in wallet...", "info");
     console.log(parsedAmount);
+    let receipt = null;
+    try {
+      const tx = await inboxContract.sendFund(parsedAmount);
 
-    if (allowance < parsedAmount) {
-      // 显示批准提示
-      const userConfirmed = await showApprovePromptModal();
-      if (!userConfirmed) {
-        return;
+      showStatus("Waiting for confirmation...", "info");
+      [receipt] = await Promise.all([
+        tx.wait().catch(() => null),
+        waitForBackendStateChange(
+          updateWalletBalance,
+          previousBalance,
+          showStatus,
+          300000,
+          "usdcBalance",
+        ).catch(() => null),
+      ]);
+    } catch (txErr) {
+      const errMsg = txErr.message || txErr.toString();
+      if (errMsg.includes("nonce") || errMsg.includes("BAD_DATA")) {
+        showStatus(
+          "Wallet reported parsing issue, but proceeding with balance confirmation...",
+          "warning",
+        );
+        await waitForBackendStateChange(
+          updateWalletBalance,
+          previousBalance,
+          showStatus,
+          300000,
+          "usdcBalance",
+        ).catch(() => null);
+      } else {
+        throw txErr;
       }
+    }
 
-      // Step 1: Approve
-      showStatus("Approving USDC...", "info");
-      setBtnLoading(true);
-      try {
-        const tx = await usdcContract.approve(INBOX_ADDR, parsedAmount);
-        // 尝试等待交易确认，但捕获可能的错误
-        try {
-          await tx.wait();
-        } catch (waitErr) {
-          // 捕获nonce解析错误，交易可能已经成功
-          console.warn(
-            "Transaction wait error (nonce parsing), but transaction may have succeeded:",
-            waitErr,
-          );
-        }
-        showStatus("Approval successful!", "success");
-        setUIState(2);
-        setBtnLoading(false);
-      } catch (approveErr) {
-        console.error("Approval error:", approveErr);
-        // 检查是否是nonce解析错误
-        if (
-          approveErr.code === "BAD_DATA" &&
-          approveErr.message.includes("nonce")
-        ) {
-          // 交易可能已经成功，继续执行
-          showStatus("Approval successful!", "success");
-          setUIState(2);
-          setBtnLoading(false);
-        } else {
-          // 其他错误，显示错误信息
-          showStatus(
-            approveErr.reason || approveErr.message || "Approval failed",
-            "error",
-          );
-          setBtnLoading(false);
-        }
-      }
-    } else {
-      showStatus("Fetching current wallet state...", "info");
-      setBtnLoading(true);
-      const previousBalance = await updateWalletBalance();
-
-      showStatus("Confirming transaction in wallet...", "info");
-      console.log(parsedAmount);
-      let receipt = null;
-      try {
-        const tx = await inboxContract.sendFund(parsedAmount);
-
-        showStatus("Waiting for confirmation...", "info");
-        [receipt] = await Promise.all([
-          tx.wait().catch(() => null),
-          waitForBackendStateChange(
-            updateWalletBalance,
-            previousBalance,
-            showStatus,
-            300000,
-            "usdcBalance",
-          ).catch(() => null),
-        ]);
-      } catch (txErr) {
-        const errMsg = txErr.message || txErr.toString();
-        if (errMsg.includes("nonce") || errMsg.includes("BAD_DATA")) {
-          showStatus(
-            "Wallet reported parsing issue, but proceeding with balance confirmation...",
-            "warning",
-          );
-          await waitForBackendStateChange(
-            updateWalletBalance,
-            previousBalance,
-            showStatus,
-            300000,
-            "usdcBalance",
-          ).catch(() => null);
-        } else {
-          throw txErr;
-        }
-      }
-
-      let txNo = null;
-      if (receipt) {
-        for (const log of receipt.logs) {
-          if (log.address.toLowerCase() === INBOX_ADDR.toLowerCase()) {
-            try {
-              const parsed = inboxContract.interface.parseLog(log);
-              if (parsed && parsed.name === "InboxSend") {
-                txNo = parsed.args.txNo;
-                console.log("Found txNo:", txNo.toString());
-                break;
-              }
-            } catch (e) {
-              // Not our event or parse error, skip
+    let txNo = null;
+    if (receipt) {
+      for (const log of receipt.logs) {
+        if (log.address.toLowerCase() === INBOX_ADDR.toLowerCase()) {
+          try {
+            const parsed = inboxContract.interface.parseLog(log);
+            if (parsed && parsed.name === "InboxSend") {
+              txNo = parsed.args.txNo;
+              console.log("Found txNo:", txNo.toString());
+              break;
             }
+          } catch (e) {
+            // Not our event or parse error, skip
           }
         }
       }
-
-      await updateBalance();
-      if (txNo) {
-        showStatus(`Payment successful! txNo: ${txNo.toString()}`, "success");
-      } else {
-        showStatus("Payment successful!", "success");
-      }
-      setUIState(3);
-      amountInput.value = "";
-
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      setBtnLoading(false, false);
-      setUIState(1);
-      checkAllowance();
     }
-  } catch (err) {
-    console.error("Action failed:", err);
-    if (handleWalletReject(err, () => handleAction())) {
-      setBtnLoading(false);
-      return;
+
+    await updateBalance();
+    if (txNo) {
+      showStatus(`Payment successful! txNo: ${txNo.toString()}`, "success");
+    } else {
+      showStatus("Payment successful!", "success");
     }
-    showStatus(err.reason || err.message || "Transaction failed", "error");
-    setBtnLoading(false);
+    setUIState(3);
+    amountInput.value = "";
+
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setBtnLoading(false, false);
+    setUIState(1);
+    checkAllowance();
   }
+  // } catch (err) {
+  //   console.error("Action failed:", err);
+  //   if (handleWalletReject(err, () => handleAction())) {
+  //     setBtnLoading(false);
+  //     return;
+  //   }
+  //   showStatus(err.reason || err.message || "Transaction failed", "error");
+  //   setBtnLoading(false);
+  // }
 }
 
 function showStatus(msg, type, allowHtml = false) {
