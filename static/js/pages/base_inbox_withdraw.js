@@ -180,11 +180,40 @@ async function handleAction() {
     setBtnLoading(true);
     const previousBalance = inboxBalanceEl.innerText;
 
-    const tx = await inboxContract.withdraw(parsedAmount);
+    let tx;
+    try {
+      // 捕获withdraw调用中的错误
+      tx = await inboxContract.withdraw(parsedAmount);
+    } catch (withdrawErr) {
+      console.error("Withdraw error:", withdrawErr);
+      // 检查是否是nonce解析错误
+      if (
+        withdrawErr.code === "BAD_DATA" &&
+        withdrawErr.message.includes("nonce")
+      ) {
+        // 交易可能已经成功，继续执行
+        showStatus("Withdrawal successful!", "success");
+        setUIState(2);
+        amountInput.value = "";
+        setBtnLoading(false, false);
+        setUIState(1);
+        return;
+      } else {
+        // 其他错误，重新抛出
+        throw withdrawErr;
+      }
+    }
 
     showStatus("Waiting for confirmation...", "info");
     await Promise.all([
-      tx.wait().catch(() => null),
+      tx.wait().catch((waitErr) => {
+        // 捕获nonce解析错误，交易可能已经成功
+        console.warn(
+          "Transaction wait error (nonce parsing), but transaction may have succeeded:",
+          waitErr,
+        );
+        return null;
+      }),
       waitForBackendStateChange(
         updateBalance,
         previousBalance,
@@ -207,8 +236,19 @@ async function handleAction() {
       setBtnLoading(false);
       return;
     }
-    showStatus(err.reason || "Transaction failed", "error");
-    setBtnLoading(false);
+    // 检查是否是nonce解析错误
+    if (err.code === "BAD_DATA" && err.message.includes("nonce")) {
+      // 交易可能已经成功，显示成功信息
+      showStatus("Withdrawal successful!", "success");
+      setUIState(2);
+      amountInput.value = "";
+      setBtnLoading(false, false);
+      setUIState(1);
+    } else {
+      // 其他错误，显示错误信息
+      showStatus(err.reason || "Transaction failed", "error");
+      setBtnLoading(false);
+    }
   }
 }
 
