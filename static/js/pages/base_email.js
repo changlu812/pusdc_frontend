@@ -14,6 +14,8 @@ import {
   setAuthToken,
   authenticatedFetch,
   updateNavBtn,
+  resolveSessionContext,
+  watchWalletAccountChanges,
   switchNetwork,
 } from "../common/base_common.js";
 import {
@@ -64,6 +66,7 @@ let currentFund = null;
 let currentStatus = TRANSFER_STATUS.DRAFT;
 let activeAction = null;
 let detailRequestSeq = 0;
+let detachAccountsChanged = () => {};
 
 let revokeConfirmModal = null;
 let revokeConfirmResolve = null;
@@ -81,6 +84,17 @@ const emailInput = document.getElementById("toEmail");
 
 const urlParams = new URLSearchParams(window.location.search);
 const currentTxNo = urlParams.get("tx_no");
+
+function enterLoggedOutState(message = "") {
+  account = null;
+  signer = null;
+  updateNavBtn(false);
+  connectBtn.style.display = "block";
+  bridgeUI.style.display = "none";
+  if (message) {
+    showStatus(message, "info");
+  }
+}
 
 function isValidTxNo(txNo) {
   return /^\d+$/.test(txNo || "") && parseInt(txNo, 10) > 0;
@@ -548,19 +562,18 @@ async function connect() {
 }
 
 async function checkLoginStatus() {
-  const token = getAuthToken();
-  if (!token) return;
+  const session = await resolveSessionContext();
+  if (!session.isLoggedIn) {
+    if (session.reason === "address_mismatch") {
+      enterLoggedOutState("Wallet account changed. Please login again.");
+      return;
+    }
+    enterLoggedOutState();
+    return;
+  }
 
   try {
-    const response = await authenticatedFetch(`${LITE_API}/api/auth/status`);
-    const data = await response.json();
-    if (!data.is_logged_in || !data.address) return;
-
-    account = data.address;
-    const accounts = await provider.send("eth_requestAccounts", []);
-    if (accounts[0]?.toLowerCase() !== account.toLowerCase()) {
-      account = accounts[0];
-    }
+    account = session.loginAddress;
     signer = await provider.getSigner();
 
     await setupContracts();
@@ -573,7 +586,7 @@ async function checkLoginStatus() {
     await refreshFundDetail({ silent: true });
   } catch (err) {
     console.log("Session check failed", err);
-    setAuthToken("");
+    enterLoggedOutState();
   }
 }
 
@@ -614,6 +627,12 @@ async function init() {
   if (revokeBtn) revokeBtn.addEventListener("click", handleRevokePayment);
 
   provider = new ethers.BrowserProvider(window.ethereum);
+  detachAccountsChanged = watchWalletAccountChanges(() => {
+    checkLoginStatus();
+  });
+  window.addEventListener("beforeunload", () => {
+    detachAccountsChanged();
+  });
   renderByStatus(currentStatus);
   checkLoginStatus();
 }

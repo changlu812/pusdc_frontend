@@ -12,6 +12,8 @@ import {
   setAuthToken,
   authenticatedFetch,
   updateNavBtn,
+  resolveSessionContext,
+  watchWalletAccountChanges,
   switchNetwork,
   pollCancelFlag,
   waitForBackendStateChange,
@@ -27,6 +29,7 @@ import {
 let provider, signer, account;
 let usdcContract, liteContract;
 let decimals = 6;
+let detachAccountsChanged = () => {};
 
 const connectBtn = document.getElementById("connectBtn");
 const bridgeUI = document.getElementById("bridgeUI");
@@ -34,6 +37,17 @@ const actionBtn = document.getElementById("actionBtn");
 const amountInput = document.getElementById("amount");
 const statusEl = document.getElementById("status");
 const balanceEl = document.getElementById("usdcBalance");
+
+function enterLoggedOutState(message = "") {
+  account = null;
+  signer = null;
+  updateNavBtn(false);
+  connectBtn.style.display = "block";
+  bridgeUI.style.display = "none";
+  if (message) {
+    showStatus(message, "info");
+  }
+}
 
 async function connect() {
   if (
@@ -282,38 +296,37 @@ window.addEventListener("beforeunload", () => {
 });
 
 async function checkLoginStatus() {
-  const token = getAuthToken();
-  if (!token) return;
+  const session = await resolveSessionContext();
+  if (!session.isLoggedIn) {
+    if (session.reason === "address_mismatch") {
+      enterLoggedOutState("Wallet account changed. Please login again.");
+      return;
+    }
+    enterLoggedOutState();
+    return;
+  }
 
   try {
-    const response = await authenticatedFetch(`${LITE_API}/api/auth/status`);
-    const data = await response.json();
-    if (data.is_logged_in && data.address) {
-      account = data.address;
-      const accounts = await provider.send("eth_requestAccounts", []);
-      if (accounts[0].toLowerCase() !== account.toLowerCase()) {
-        account = accounts[0];
-      }
-      signer = await provider.getSigner();
+    account = session.loginAddress;
+    signer = await provider.getSigner();
 
-      usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
-      liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
+    usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
+    liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
 
-      try {
-        decimals = await usdcContract.decimals();
-      } catch (e) {
-        decimals = 6;
-      }
-
-      connectBtn.style.display = "none";
-      bridgeUI.style.display = "block";
-      showStatus("Restored Session", "success");
-      updateNavBtn(true, account);
-      updateBalance();
+    try {
+      decimals = await usdcContract.decimals();
+    } catch (e) {
+      decimals = 6;
     }
+
+    connectBtn.style.display = "none";
+    bridgeUI.style.display = "block";
+    showStatus("Restored Session", "success");
+    updateNavBtn(true, account);
+    updateBalance();
   } catch (err) {
     console.log("Session check failed", err);
-    setAuthToken("");
+    enterLoggedOutState();
   }
 }
 
@@ -344,6 +357,12 @@ async function init() {
   }
 
   provider = new ethers.BrowserProvider(window.ethereum);
+  detachAccountsChanged = watchWalletAccountChanges(() => {
+    checkLoginStatus();
+  });
+  window.addEventListener("beforeunload", () => {
+    detachAccountsChanged();
+  });
   checkLoginStatus();
 }
 

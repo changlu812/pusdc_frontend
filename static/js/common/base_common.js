@@ -54,6 +54,14 @@ const TOKEN_KEY = "pusdc_auth_token";
 export const getAuthToken = () => localStorage.getItem(TOKEN_KEY);
 export const setAuthToken = (token) => localStorage.setItem(TOKEN_KEY, token);
 
+const normalizeAddress = (address) =>
+  typeof address === "string" ? address.toLowerCase() : "";
+
+export const clearAuthSession = () => {
+  setAuthToken("");
+  updateNavBtn(false);
+};
+
 // 自动附带 Bearer token 的 fetch 包装。
 export const authenticatedFetch = async (url, options = {}) => {
   const token = getAuthToken();
@@ -65,6 +73,85 @@ export const authenticatedFetch = async (url, options = {}) => {
   }
   return fetch(url, { ...options, headers });
 };
+
+export async function getWalletAddressPassive() {
+  if (typeof window.ethereum === "undefined") {
+    return null;
+  }
+
+  try {
+    const accounts = await window.ethereum.request({ method: "eth_accounts" });
+    return accounts?.[0] || null;
+  } catch (err) {
+    console.warn("Failed to read wallet accounts:", err);
+    return null;
+  }
+}
+
+export async function resolveSessionContext() {
+  const token = getAuthToken();
+  if (!token) {
+    return { isLoggedIn: false, reason: "no_token" };
+  }
+
+  try {
+    const response = await authenticatedFetch(`${LITE_API}/api/auth/status`);
+    const data = await response.json();
+
+    if (!response.ok || !data?.is_logged_in || !data?.address) {
+      clearAuthSession();
+      return { isLoggedIn: false, reason: "not_logged_in", data };
+    }
+
+    const loginAddress = data.address;
+    const walletAddress = await getWalletAddressPassive();
+
+    const hasMismatch =
+      !!walletAddress &&
+      normalizeAddress(walletAddress) !== normalizeAddress(loginAddress);
+
+    if (hasMismatch) {
+      clearAuthSession();
+      return {
+        isLoggedIn: false,
+        reason: "address_mismatch",
+        loginAddress,
+        walletAddress,
+      };
+    }
+
+    return {
+      isLoggedIn: true,
+      reason: "ok",
+      loginAddress,
+      walletAddress,
+      data,
+    };
+  } catch (err) {
+    clearAuthSession();
+    return { isLoggedIn: false, reason: "status_error", error: err };
+  }
+}
+
+export function watchWalletAccountChanges(handler) {
+  if (typeof window.ethereum === "undefined" || typeof handler !== "function") {
+    return () => {};
+  }
+
+  const wrapped = (accounts) => {
+    handler(accounts?.[0] || null);
+  };
+
+  if (typeof window.ethereum.on === "function") {
+    window.ethereum.on("accountsChanged", wrapped);
+  }
+
+  return () => {
+    if (typeof window.ethereum.removeListener === "function") {
+      window.ethereum.removeListener("accountsChanged", wrapped);
+    }
+  };
+}
 
 // 统一更新导航按钮文案和登录状态标记。
 export const updateNavBtn = (isLoggedIn, address = null) => {
