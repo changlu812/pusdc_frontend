@@ -14,6 +14,8 @@ import {
   setAuthToken,
   authenticatedFetch,
   updateNavBtn,
+  resolveSessionContext,
+  watchWalletAccountChanges,
   switchNetwork,
   setPollCancelFlag,
   waitForBackendStateChange,
@@ -27,6 +29,12 @@ import {
 let provider, signer, account;
 let usdcContract, inboxContract, liteContract;
 let decimals = 6;
+let detachAccountsChanged = () => {};
+const WITHDRAW_TX_STATE = Object.freeze({
+  SUBMITTED: "SUBMITTED",
+  CONFIRMED: "CONFIRMED",
+  FAILED: "FAILED",
+});
 
 const connectBtn = document.getElementById("connectBtn");
 const bridgeUI = document.getElementById("bridgeUI");
@@ -35,6 +43,17 @@ const amountInput = document.getElementById("amount");
 const statusEl = document.getElementById("status");
 const balanceEl = document.getElementById("usdcBalance");
 const inboxBalanceEl = document.getElementById("claimableBalance");
+
+function enterLoggedOutState(message = "") {
+  account = null;
+  signer = null;
+  updateNavBtn(false);
+  connectBtn.style.display = "block";
+  bridgeUI.style.display = "none";
+  if (message) {
+    showStatus(message, "info");
+  }
+}
 
 async function connect() {
   if (
@@ -166,6 +185,141 @@ function setUIState(step) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isSubmissionUncertainError(error) {
+  const codes = [
+    error?.code,
+    error?.info?.error?.code,
+    error?.error?.code,
+    error?.data?.code,
+  ]
+    .filter(Boolean)
+    .map((v) => String(v).toUpperCase());
+
+  if (codes.includes("BAD_DATA")) {
+    return true;
+  }
+
+  const message = [
+    error?.shortMessage,
+    error?.reason,
+    error?.message,
+    error?.info?.error?.message,
+    error?.error?.message,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    message.includes("nonce") ||
+    message.includes("bad_data") ||
+    message.includes("invalid response") ||
+    message.includes("could not decode result data")
+  );
+}
+
+function extractTxHash(error) {
+  const directHash =
+    error?.transactionHash ||
+    error?.hash ||
+    error?.info?.txHash ||
+    error?.info?.hash ||
+    error?.error?.transactionHash ||
+    error?.receipt?.transactionHash;
+  if (directHash && /^0x[0-9a-fA-F]{64}$/.test(directHash)) {
+    return directHash;
+  }
+
+  const message = [
+    error?.shortMessage,
+    error?.reason,
+    error?.message,
+    error?.info?.error?.message,
+    error?.error?.message,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const match = message.match(/0x[a-fA-F0-9]{64}/);
+  return match ? match[0] : null;
+}
+
+async function waitForReceiptByHash(txHash, timeoutMs = 300000) {
+  if (!txHash) return null;
+
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const receipt = await provider.getTransactionReceipt(txHash);
+      if (receipt) {
+        return receipt;
+      }
+    } catch (err) {
+      // Keep polling when RPC cannot parse receipt yet.
+    }
+    await sleep(2500);
+  }
+  return null;
+}
+
+async function waitForReceiptOutcome(tx, txHash, timeoutMs = 300000) {
+  let candidateHash = txHash || tx?.hash || null;
+
+  if (tx && typeof tx.wait === "function") {
+    try {
+      const receipt = await tx.wait();
+      if (receipt?.status === 1) {
+        return { state: WITHDRAW_TX_STATE.CONFIRMED, source: "receipt_wait" };
+      }
+      if (receipt?.status === 0) {
+        return { state: WITHDRAW_TX_STATE.FAILED, source: "receipt_wait" };
+      }
+      candidateHash =
+        candidateHash || receipt?.hash || receipt?.transactionHash || null;
+    } catch (waitErr) {
+      candidateHash = candidateHash || extractTxHash(waitErr);
+      if (!isSubmissionUncertainError(waitErr) && !candidateHash) {
+        return {
+          state: WITHDRAW_TX_STATE.SUBMITTED,
+          source: "receipt_wait_error",
+          error: waitErr,
+        };
+      }
+    }
+  }
+
+  const receipt = await waitForReceiptByHash(candidateHash, timeoutMs);
+  if (!receipt) {
+    return { state: WITHDRAW_TX_STATE.SUBMITTED, source: "receipt_timeout" };
+  }
+  if (receipt.status === 1) {
+    return { state: WITHDRAW_TX_STATE.CONFIRMED, source: "receipt_hash" };
+  }
+  return { state: WITHDRAW_TX_STATE.FAILED, source: "receipt_hash" };
+}
+
+async function waitForBalanceOutcome(previousBalance, timeoutMs = 300000) {
+  try {
+    await waitForBackendStateChange(
+      updateBalance,
+      previousBalance,
+      showStatus,
+      timeoutMs,
+      "claimableBalance",
+    );
+    return { state: WITHDRAW_TX_STATE.CONFIRMED, source: "balance_diff" };
+  } catch (err) {
+    return {
+      state: WITHDRAW_TX_STATE.SUBMITTED,
+      source: "balance_timeout",
+      error: err,
+    };
+  }
+}
+
 async function handleAction() {
   const amount = amountInput.value;
   if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
@@ -179,36 +333,92 @@ async function handleAction() {
     showStatus("Confirming transaction in wallet...", "info");
     setBtnLoading(true);
     const previousBalance = inboxBalanceEl.innerText;
+    const timeoutMs = 300000;
+    let tx = null;
+    let txHash = null;
 
-    const tx = await inboxContract.withdraw(parsedAmount);
+    try {
+      tx = await inboxContract.withdraw(parsedAmount);
+      txHash = tx?.hash || null;
+    } catch (withdrawErr) {
+      console.error("Withdraw error:", withdrawErr);
+      if (handleWalletReject(withdrawErr, () => handleAction())) {
+        setBtnLoading(false);
+        return;
+      }
+
+      txHash = extractTxHash(withdrawErr);
+      if (!isSubmissionUncertainError(withdrawErr) && !txHash) {
+        throw withdrawErr;
+      }
+
+      showStatus("Transaction submitted. Waiting for confirmation...", "info");
+    }
 
     showStatus("Waiting for confirmation...", "info");
-    await Promise.all([
-      tx.wait().catch(() => null),
-      waitForBackendStateChange(
-        updateBalance,
-        previousBalance,
-        showStatus,
-        300000,
-        "claimableBalance",
-      ).catch(() => null),
-    ]);
-    await updateBalance();
-    showStatus("Withdrawal successful!", "success");
-    setUIState(2);
-    amountInput.value = "";
 
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setBtnLoading(false, false);
+    const receiptOutcomePromise = waitForReceiptOutcome(tx, txHash, timeoutMs);
+    const balanceOutcomePromise = waitForBalanceOutcome(previousBalance, timeoutMs);
+
+    const decisiveReceiptPromise = receiptOutcomePromise.then((result) => {
+      if (
+        result.state === WITHDRAW_TX_STATE.CONFIRMED ||
+        result.state === WITHDRAW_TX_STATE.FAILED
+      ) {
+        return result;
+      }
+      return new Promise(() => {});
+    });
+
+    const decisiveBalancePromise = balanceOutcomePromise.then((result) => {
+      if (result.state === WITHDRAW_TX_STATE.CONFIRMED) {
+        return result;
+      }
+      return new Promise(() => {});
+    });
+
+    const timeoutPromise = new Promise((resolve) => {
+      setTimeout(
+        () => resolve({ state: WITHDRAW_TX_STATE.SUBMITTED, source: "timeout" }),
+        timeoutMs,
+      );
+    });
+
+    const outcome = await Promise.race([
+      decisiveReceiptPromise,
+      decisiveBalancePromise,
+      timeoutPromise,
+    ]);
+
+    if (outcome.state === WITHDRAW_TX_STATE.CONFIRMED) {
+      await updateBalance();
+      showStatus("Withdrawal successful!", "success");
+      setUIState(2);
+      amountInput.value = "";
+      await sleep(2000);
+      setBtnLoading(false, false);
+      setUIState(1);
+      return;
+    }
+
+    if (outcome.state === WITHDRAW_TX_STATE.FAILED) {
+      showStatus("Withdrawal failed on chain.", "error");
+      setBtnLoading(false);
+      setUIState(1);
+      return;
+    }
+
+    showStatus(
+      "Withdrawal submitted but not confirmed yet. Please check again shortly.",
+      "info",
+    );
+    setBtnLoading(false);
     setUIState(1);
   } catch (err) {
     console.error(err);
-    if (handleWalletReject(err, () => handleAction())) {
-      setBtnLoading(false);
-      return;
-    }
-    showStatus(err.reason || "Transaction failed", "error");
+    showStatus(err.reason || err.message || "Transaction failed", "error");
     setBtnLoading(false);
+    setUIState(1);
   }
 }
 
@@ -241,40 +451,38 @@ window.addEventListener("beforeunload", () => {
 });
 
 async function checkLoginStatus() {
-  const token = getAuthToken();
-  if (!token) return;
+  const session = await resolveSessionContext();
+  if (!session.isLoggedIn) {
+    if (session.reason === "address_mismatch") {
+      enterLoggedOutState("Wallet account changed. Please login again.");
+      return;
+    }
+    enterLoggedOutState();
+    return;
+  }
 
   try {
-    const response = await authenticatedFetch(`${LITE_API}/api/auth/status`);
-    const data = await response.json();
-    if (data.is_logged_in && data.address) {
-      account = data.address;
+    account = session.loginAddress;
+    signer = await provider.getSigner();
 
-      const accounts = await provider.send("eth_requestAccounts", []);
-      if (accounts[0].toLowerCase() !== account.toLowerCase()) {
-        account = accounts[0];
-      }
-      signer = await provider.getSigner();
+    usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
+    inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
+    liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
 
-      usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
-      inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
-      liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
-
-      try {
-        decimals = await usdcContract.decimals();
-      } catch (e) {
-        decimals = 6;
-      }
-
-      connectBtn.style.display = "none";
-      bridgeUI.style.display = "block";
-      showStatus("Restored Session", "success");
-      updateNavBtn(true, account);
-      updateBalance();
+    try {
+      decimals = await usdcContract.decimals();
+    } catch (e) {
+      decimals = 6;
     }
+
+    connectBtn.style.display = "none";
+    bridgeUI.style.display = "block";
+    showStatus("Restored Session", "success");
+    updateNavBtn(true, account);
+    updateBalance();
   } catch (err) {
     console.log("Session check failed", err);
-    setAuthToken("");
+    enterLoggedOutState();
   }
 }
 
@@ -305,6 +513,12 @@ async function init() {
   }
 
   provider = new ethers.BrowserProvider(window.ethereum);
+  detachAccountsChanged = watchWalletAccountChanges(() => {
+    checkLoginStatus();
+  });
+  window.addEventListener("beforeunload", () => {
+    detachAccountsChanged();
+  });
   checkLoginStatus();
 }
 

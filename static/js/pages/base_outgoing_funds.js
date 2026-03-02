@@ -14,6 +14,8 @@ import {
   setAuthToken,
   authenticatedFetch,
   updateNavBtn,
+  resolveSessionContext,
+  watchWalletAccountChanges,
   switchNetwork,
 } from "../common/base_common.js";
 import {
@@ -27,6 +29,26 @@ import {
 let provider, signer, account;
 let usdcContract, liteContract, inboxContract;
 let decimals = 6;
+let fundsRequestSeq = 0;
+let detachAccountsChanged = () => {};
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+const TRANSFER_STATUS = Object.freeze({
+  DRAFT: "DRAFT",
+  PENDING: "PENDING",
+  COMPLETED: "COMPLETED",
+  REVOKED: "REVOKED",
+});
+
+const STATUS_META = Object.freeze({
+  [TRANSFER_STATUS.DRAFT]: { label: "Draft", className: "status-draft" },
+  [TRANSFER_STATUS.PENDING]: { label: "Pending", className: "status-pending" },
+  [TRANSFER_STATUS.COMPLETED]: {
+    label: "Completed",
+    className: "status-completed",
+  },
+  [TRANSFER_STATUS.REVOKED]: { label: "Revoked", className: "status-revoked" },
+});
 
 const connectBtn = document.getElementById("connectBtn");
 const bridgeUI = document.getElementById("bridgeUI");
@@ -34,6 +56,17 @@ const bridgeUI = document.getElementById("bridgeUI");
 const amountInput = document.getElementById("amount");
 const statusEl = document.getElementById("status");
 const balanceEl = document.getElementById("usdcBalance");
+
+function enterLoggedOutState(message = "") {
+  account = null;
+  signer = null;
+  updateNavBtn(false);
+  connectBtn.style.display = "block";
+  bridgeUI.style.display = "none";
+  if (message) {
+    showStatus(message, "info");
+  }
+}
 
 async function connect() {
   if (
@@ -237,6 +270,51 @@ function showStatus(msg, type) {
         : "info-msg";
 }
 
+function isZeroAddress(addr) {
+  return (addr || "").toLowerCase() === ZERO_ADDRESS;
+}
+
+function normalizeTransferStatus(fund, chainTransfer) {
+  const rawStatus =
+    typeof fund?.status === "string" ? fund.status.toUpperCase() : "";
+  if (STATUS_META[rawStatus]) {
+    return rawStatus;
+  }
+
+  if (chainTransfer?.finished) {
+    return isZeroAddress(chainTransfer.toAddr)
+      ? TRANSFER_STATUS.REVOKED
+      : TRANSFER_STATUS.COMPLETED;
+  }
+
+  return fund?.email ? TRANSFER_STATUS.PENDING : TRANSFER_STATUS.DRAFT;
+}
+
+async function fetchChainTransfer(txNo) {
+  if (!inboxContract) return null;
+
+  try {
+    const transfer = await inboxContract.inboxTransfers(BigInt(txNo));
+    return {
+      toAddr: transfer.toAddr ?? transfer[1],
+      finished: Boolean(transfer.finished ?? transfer[3]),
+    };
+  } catch (err) {
+    console.warn(`Failed to query chain transfer for tx #${txNo}`, err);
+    return null;
+  }
+}
+
+async function enrichFundsWithStatus(funds) {
+  return Promise.all(
+    funds.map(async (fund) => {
+      const chainTransfer = await fetchChainTransfer(fund.tx_no);
+      const status = normalizeTransferStatus(fund, chainTransfer);
+      return { ...fund, transfer_status: status };
+    }),
+  );
+}
+
 // function setBtnLoading(loading) {
 //   actionBtn.disabled = loading;
 //   if (loading) {
@@ -250,11 +328,25 @@ connectBtn.addEventListener("click", connect);
 // actionBtn.addEventListener('click', handleAction);
 
 async function fetchOutgoingFunds() {
+  const requestSeq = ++fundsRequestSeq;
   try {
     const response = await authenticatedFetch(`${LITE_API}/api/outgoing_funds`);
     const data = await response.json();
     if (data.status === "ok") {
-      renderOutgoingFunds(data.result);
+      const baseFunds = (data.result || []).map((fund) => ({
+        ...fund,
+        transfer_status: normalizeTransferStatus(fund, null),
+      }));
+      renderOutgoingFunds(baseFunds);
+
+      enrichFundsWithStatus(data.result || [])
+        .then((fundsWithStatus) => {
+          if (requestSeq !== fundsRequestSeq) return;
+          renderOutgoingFunds(fundsWithStatus);
+        })
+        .catch((err) => {
+          console.warn("Failed to hydrate on-chain status for outgoing funds", err);
+        });
     }
   } catch (err) {
     console.error("Error fetching outgoing funds:", err);
@@ -266,7 +358,7 @@ function renderOutgoingFunds(funds) {
   let tableHtml = `
     <div style="margin-top: 32px;">
       <h3 style="margin-bottom: 16px; font-size: 18px;">Outgoing Funds History</h3>
-      <p class="outgoing-funds-tip">Tip: Click any record in Outgoing Funds History to send an email for that fund.</p>
+      <p class="outgoing-funds-tip">Tip: Click any record in Outgoing Funds History to view or manage the email transfer.</p>
       <div class="outgoing-funds-table-wrap">
         <table class="outgoing-funds-table">
           <thead>
@@ -298,11 +390,7 @@ function renderOutgoingFunds(funds) {
         ? `${ethers.formatUnits(fund.amount, decimals)} USDC`
         : "-";
       const emailDisplay = fund.email ? fund.email : "-";
-      
-      // 判断状态
-      const isCompleted = !!fund.email;
-      const statusText = isCompleted ? "Completed" : "Pending";
-      const statusClass = isCompleted ? "status-completed" : "status-pending";
+      const statusMeta = STATUS_META[fund.transfer_status] || STATUS_META.DRAFT;
 
       tableHtml += `
         <tr onclick="window.location.href='base_email.html?tx_no=${fund.tx_no}'">
@@ -310,7 +398,7 @@ function renderOutgoingFunds(funds) {
           <td>${emailDisplay}</td>
           <td>${amountDisplay}</td>
           <td style="color: var(--text-dim);">${date}</td>
-          <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+          <td><span class="status-badge ${statusMeta.className}">${statusMeta.label}</span></td>
         </tr>
       `;
     });
@@ -336,40 +424,39 @@ function renderOutgoingFunds(funds) {
 }
 
 async function checkLoginStatus() {
-  const token = getAuthToken();
-  if (!token) return;
+  const session = await resolveSessionContext();
+  if (!session.isLoggedIn) {
+    if (session.reason === "address_mismatch") {
+      enterLoggedOutState("Wallet account changed. Please login again.");
+      return;
+    }
+    enterLoggedOutState();
+    return;
+  }
 
   try {
-    const response = await authenticatedFetch(`${LITE_API}/api/auth/status`);
-    const data = await response.json();
-    if (data.is_logged_in && data.address) {
-      account = data.address;
-      // const accounts = await provider.send("eth_requestAccounts", []);
-      // if (accounts[0].toLowerCase() !== account.toLowerCase()) {
-      //   account = accounts[0];
-      // }
-      signer = await provider.getSigner();
+    account = session.loginAddress;
+    signer = await provider.getSigner();
 
-      usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
-      liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
-      inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
+    usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
+    liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
+    inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
 
-      try {
-        decimals = await usdcContract.decimals();
-      } catch (e) {
-        decimals = 6;
-      }
-
-      connectBtn.style.display = "none";
-      bridgeUI.style.display = "block";
-      showStatus("Restored Session", "success");
-      updateNavBtn(true, account);
-      updateBalance();
-      fetchOutgoingFunds();
+    try {
+      decimals = await usdcContract.decimals();
+    } catch (e) {
+      decimals = 6;
     }
+
+    connectBtn.style.display = "none";
+    bridgeUI.style.display = "block";
+    showStatus("Restored Session", "success");
+    updateNavBtn(true, account);
+    updateBalance();
+    fetchOutgoingFunds();
   } catch (err) {
     console.log("Session check failed", err);
-    setAuthToken("");
+    enterLoggedOutState();
   }
 }
 
@@ -400,6 +487,12 @@ async function init() {
   }
 
   provider = new ethers.BrowserProvider(window.ethereum);
+  detachAccountsChanged = watchWalletAccountChanges(() => {
+    checkLoginStatus();
+  });
+  window.addEventListener("beforeunload", () => {
+    detachAccountsChanged();
+  });
   checkLoginStatus();
 }
 

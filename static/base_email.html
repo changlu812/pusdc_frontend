@@ -56,10 +56,15 @@
                             <input type="text" id="toEmail" placeholder="Email Address">
                         </div>
                     </div>
-                    <button id="actionBtn" class="btn btn-primary">Send USDC</button>
+                    <div class="action-group">
+                        <button id="actionBtn" class="btn btn-primary">Send email</button>
+                        <button id="resendBtn" class="btn btn-primary" style="display: none;">Resend email</button>
+                        <button id="revokeBtn" class="btn btn-danger" style="display: none;">Revoke payment</button>
+                    </div>
 
                 </div>
 
+                <div id="stateNote" class="state-note"></div>
                 <div id="status"></div>
             </div>
         </div>
