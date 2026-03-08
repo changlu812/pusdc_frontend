@@ -57,6 +57,11 @@ const BUTTON_LABELS = Object.freeze({
 });
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const REVOKE_TX_STATE = Object.freeze({
+  SUBMITTED: "SUBMITTED",
+  CONFIRMED: "CONFIRMED",
+  FAILED: "FAILED",
+});
 
 let provider, signer, account;
 let usdcContract, liteContract, inboxContract;
@@ -202,6 +207,155 @@ function renderByStatus(status) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isSubmissionUncertainError(error) {
+  const codes = [
+    error?.code,
+    error?.info?.error?.code,
+    error?.error?.code,
+    error?.data?.code,
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).toUpperCase());
+
+  if (codes.includes("BAD_DATA")) {
+    return true;
+  }
+
+  const message = [
+    error?.shortMessage,
+    error?.reason,
+    error?.message,
+    error?.info?.error?.message,
+    error?.error?.message,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return (
+    message.includes("nonce") ||
+    message.includes("bad_data") ||
+    message.includes("invalid response") ||
+    message.includes("could not decode result data")
+  );
+}
+
+function extractTxHash(error) {
+  const directHash =
+    error?.transactionHash ||
+    error?.hash ||
+    error?.info?.txHash ||
+    error?.info?.hash ||
+    error?.error?.transactionHash ||
+    error?.receipt?.transactionHash;
+  if (directHash && /^0x[0-9a-fA-F]{64}$/.test(directHash)) {
+    return directHash;
+  }
+
+  const message = [
+    error?.shortMessage,
+    error?.reason,
+    error?.message,
+    error?.info?.error?.message,
+    error?.error?.message,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const match = message.match(/0x[a-fA-F0-9]{64}/);
+  return match ? match[0] : null;
+}
+
+async function waitForReceiptByHash(txHash, timeoutMs = 300000) {
+  if (!txHash) return null;
+
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const receipt = await provider.getTransactionReceipt(txHash);
+      if (receipt) {
+        return receipt;
+      }
+    } catch (err) {
+      // Keep polling when RPC cannot parse receipt yet.
+    }
+    await sleep(2500);
+  }
+  return null;
+}
+
+async function waitForReceiptOutcome(tx, txHash, timeoutMs = 300000) {
+  let candidateHash = txHash || tx?.hash || null;
+
+  if (tx && typeof tx.wait === "function") {
+    try {
+      const receipt = await tx.wait();
+      if (receipt?.status === 1) {
+        return { state: REVOKE_TX_STATE.CONFIRMED, source: "receipt_wait" };
+      }
+      if (receipt?.status === 0) {
+        return { state: REVOKE_TX_STATE.FAILED, source: "receipt_wait" };
+      }
+      candidateHash =
+        candidateHash || receipt?.hash || receipt?.transactionHash || null;
+    } catch (waitErr) {
+      candidateHash = candidateHash || extractTxHash(waitErr);
+      if (!isSubmissionUncertainError(waitErr) && !candidateHash) {
+        return {
+          state: REVOKE_TX_STATE.SUBMITTED,
+          source: "receipt_wait_error",
+          error: waitErr,
+        };
+      }
+    }
+  }
+
+  const receipt = await waitForReceiptByHash(candidateHash, timeoutMs);
+  if (!receipt) {
+    return { state: REVOKE_TX_STATE.SUBMITTED, source: "receipt_timeout" };
+  }
+  if (receipt.status === 1) {
+    return { state: REVOKE_TX_STATE.CONFIRMED, source: "receipt_hash" };
+  }
+  return { state: REVOKE_TX_STATE.FAILED, source: "receipt_hash" };
+}
+
+function readBalanceSnapshot() {
+  return {
+    usdc: balanceEl?.innerText || "",
+    privacy: document.getElementById("privacyBalance")?.innerText || "",
+    claimable: document.getElementById("claimableBalance")?.innerText || "",
+  };
+}
+
+function hasBalanceChanged(previousSnapshot) {
+  const currentSnapshot = readBalanceSnapshot();
+  return (
+    currentSnapshot.usdc !== previousSnapshot.usdc ||
+    currentSnapshot.privacy !== previousSnapshot.privacy ||
+    currentSnapshot.claimable !== previousSnapshot.claimable
+  );
+}
+
+async function waitForBalanceOutcome(previousSnapshot, timeoutMs = 300000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    await sleep(2500);
+    try {
+      await updateBalance();
+      if (hasBalanceChanged(previousSnapshot)) {
+        return { state: REVOKE_TX_STATE.CONFIRMED, source: "balance_diff" };
+      }
+    } catch (err) {
+      // Keep polling when balance refresh is temporarily unavailable.
+    }
+  }
+  return { state: REVOKE_TX_STATE.SUBMITTED, source: "balance_timeout" };
+}
+
 async function fetchFundDetail(txNo) {
   const response = await authenticatedFetch(`${LITE_API}/api/outgoing_fund?tx_no=${txNo}`);
   const data = await response.json();
@@ -343,6 +497,11 @@ async function handleResendEmail() {
 }
 
 function closeRevokeModal(result) {
+  const activeEl = document.activeElement;
+  if (revokeConfirmModal && activeEl && revokeConfirmModal.contains(activeEl)) {
+    activeEl.blur();
+  }
+
   if (revokeConfirmModal) {
     revokeConfirmModal.classList.remove("open");
     revokeConfirmModal.setAttribute("aria-hidden", "true");
@@ -351,6 +510,10 @@ function closeRevokeModal(result) {
   if (revokeConfirmResolve) {
     revokeConfirmResolve(result);
     revokeConfirmResolve = null;
+  }
+
+  if (revokeBtn && typeof revokeBtn.focus === "function") {
+    revokeBtn.focus();
   }
 }
 
@@ -400,6 +563,26 @@ function confirmRevoke() {
   });
 }
 
+async function syncRevokeStatus(maxAttempts = 12, intervalMs = 2500) {
+  for (let i = 0; i < maxAttempts; i += 1) {
+    try {
+      const chainTransfer = await fetchChainTransfer(currentTxNo);
+      const isRevokedOnChain =
+        !!chainTransfer?.finished && isZeroAddress(chainTransfer?.toAddr);
+      if (isRevokedOnChain) {
+        currentStatus = TRANSFER_STATUS.REVOKED;
+        renderFundDetail();
+        return true;
+      }
+    } catch (err) {
+      // Keep polling when RPC temporarily fails.
+    }
+    await sleep(intervalMs);
+  }
+  await refreshFundDetail({ silent: true });
+  return false;
+}
+
 async function handleRevokePayment() {
   if (currentStatus !== TRANSFER_STATUS.PENDING || activeAction) {
     return;
@@ -415,12 +598,117 @@ async function handleRevokePayment() {
   setActionLoading("revoke", true);
   try {
     showStatus("Please confirm revoke transaction in wallet...", "info");
-    const tx = await inboxContract.revokeFund(BigInt(currentTxNo));
-    showStatus("Waiting for transaction confirmation...", "info");
-    await tx.wait();
-    showStatus("Payment revoked successfully.", "success");
-    await refreshFundDetail({ silent: true });
+    const previousSnapshot = readBalanceSnapshot();
+    const timeoutMs = 300000;
+    let tx = null;
+    let txHash = null;
+
+    try {
+      tx = await inboxContract.revokeFund(BigInt(currentTxNo));
+      txHash = tx?.hash || null;
+    } catch (revokeErr) {
+      const uncertain = isSubmissionUncertainError(revokeErr);
+      if (uncertain) {
+        console.log(
+          "Revoke submission uncertain (nonce/BAD_DATA). Continue confirmation:",
+          revokeErr,
+        );
+      } else {
+        console.error("Revoke submission error:", revokeErr);
+      }
+      if (handleWalletReject(revokeErr, () => handleRevokePayment())) {
+        return;
+      }
+
+      txHash = extractTxHash(revokeErr);
+      if (!uncertain && !txHash) {
+        throw revokeErr;
+      }
+
+      showStatus("Transaction submitted. Waiting for confirmation...", "info");
+    }
+
+    showStatus("Waiting for confirmation...", "info");
+
+    const receiptOutcomePromise = waitForReceiptOutcome(tx, txHash, timeoutMs);
+    const balanceOutcomePromise = waitForBalanceOutcome(
+      previousSnapshot,
+      timeoutMs,
+    );
+
+    const decisiveReceiptPromise = receiptOutcomePromise.then((result) => {
+      if (
+        result.state === REVOKE_TX_STATE.CONFIRMED ||
+        result.state === REVOKE_TX_STATE.FAILED
+      ) {
+        return result;
+      }
+      return new Promise(() => {});
+    });
+
+    const decisiveBalancePromise = balanceOutcomePromise.then((result) => {
+      if (result.state === REVOKE_TX_STATE.CONFIRMED) {
+        return result;
+      }
+      return new Promise(() => {});
+    });
+
+    const timeoutPromise = new Promise((resolve) => {
+      setTimeout(
+        () => resolve({ state: REVOKE_TX_STATE.SUBMITTED, source: "timeout" }),
+        timeoutMs,
+      );
+    });
+
+    const outcome = await Promise.race([
+      decisiveReceiptPromise,
+      decisiveBalancePromise,
+      timeoutPromise,
+    ]);
+
+    if (outcome.state === REVOKE_TX_STATE.CONFIRMED) {
+      await updateBalance();
+      showStatus("Payment revoked successfully.", "success");
+      syncRevokeStatus(12, 2500).catch((err) => {
+        console.warn("Background revoke status sync failed:", err);
+      });
+      return;
+    }
+
+    if (outcome.state === REVOKE_TX_STATE.FAILED) {
+      showStatus("Revoke failed on chain.", "error");
+      return;
+    }
+
+    showStatus(
+      "Revoke submitted but not confirmed yet. Please check again shortly.",
+      "info",
+    );
   } catch (err) {
+    if (isSubmissionUncertainError(err)) {
+      console.log(
+        "Revoke flow uncertain (nonce/BAD_DATA). Keep syncing status:",
+        err,
+      );
+      await updateBalance();
+      showStatus(
+        "Revoke submitted. Finalizing status in background...",
+        "info",
+      );
+      syncRevokeStatus(12, 2500)
+        .then((synced) => {
+          showStatus(
+            synced
+              ? "Payment revoked successfully."
+              : "Revoke submitted but not confirmed yet. Please check again shortly.",
+            synced ? "success" : "info",
+          );
+        })
+        .catch((syncErr) => {
+          console.warn("Background revoke status sync failed:", syncErr);
+        });
+      return;
+    }
     console.error(err);
     if (handleWalletReject(err, () => handleRevokePayment())) {
       return;
