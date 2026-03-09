@@ -22,28 +22,39 @@
       <a href="index.html" class="logo"
         ><img src="logos/logo_white.svg" alt="AviaryPay" style="height: 52px"
       /></a>
-      <a href="base_pay.html" id="navActionBtn" class="btn-launch"
-        >Launch App</a
-      >
+      <div class="nav-actions">
+        <a href="base_pay.html" id="navActionBtn" class="btn-launch"
+          >Launch App <span class="nav-hint">Human Way</span></a
+        >
+        <a href="skill.html" class="btn-launch skill-btn"
+          >Install Skill <span class="nav-hint">AI Way</span></a
+        >
+      </div>
     </nav>
 
     <header>
       <h1>
-        Gift Digital Dollars to
-        <span class="hero-gradient">Anyone with an Email</span>
+        Digital Dollars for <span class="hero-gradient">Humans & Machines</span>
       </h1>
       <p class="subheading">
         The simplest bridge between Web3 and the rest of the world.<br />
-        Onboard your friends to Base in seconds—no wallet address or complex
-        setup needed for them to start.
+        Choose your path: The "Retro" way for your human friends, or the AI way for your autonomous agents.
       </p>
-      <div style="display: flex; gap: 16px; justify-content: center">
-        <a
-          href="base_pay.html"
-          class="btn-launch"
-          style="padding: 16px 40px; font-size: 18px"
-          >Bring a Friend to Web3</a
-        >
+      
+      <div class="hero-paths">
+        <div class="hero-card retro-path">
+          <div class="path-icon">📧</div>
+          <h3>The "Old" Way</h3>
+          <p>Send USDC via Email. Yes, email. Because your friends still use it, and we don't judge.</p>
+          <a href="base_pay.html" class="btn-launch">Bring a Friend to Web3</a>
+        </div>
+        
+        <div class="hero-card ai-path">
+          <div class="path-icon">🤖</div>
+          <h3>The AI Way</h3>
+          <p>Install the AviaryPay Skill. Let your bots handle the tokens while you drink coffee.</p>
+          <a href="#skill-section" class="btn-launch" style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);">View the Skill</a>
+        </div>
       </div>
     </header>
 
@@ -139,14 +150,58 @@
     </section>
     -->
 
+    <section id="skill-section" class="section skill-highlight">
+      <div class="section-title">
+        <h2>Power Up Your AI Agents</h2>
+        <p style="color: var(--text-dim)">
+          Install the AviaryPay Skill and give your agents a bank account.
+        </p>
+      </div>
+      <div class="skill-container">
+        <div class="terminal-window">
+          <div class="terminal-header">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+            <span class="terminal-title">aviarypay-skill.md</span>
+          </div>
+          <div class="terminal-body">
+            <pre><code><span class="comment"># Install via Pip</span>
+$ pip install web3b0x
+
+<span class="comment"># Command your agent</span>
+"Hey Agent, send 5 USDC to friend@email.com 
+ using AviaryPay skill."
+
+<span class="success-msg">✓ Logic: Homomorphic Encryption enabled
+✓ Status: Agent is now smarter (and richer)</span></code></pre>
+          </div>
+        </div>
+        <div class="card" style="margin-top: 0;">
+          <h3>Developer Ready</h3>
+          <p>
+            Integrate <strong>AviaryPay</strong> directly into your LLM-based applications. 
+            No more manual signatures—just pure, programmatic finance.
+          </p>
+          <ul style="color: var(--text-dim); margin-top: 16px; list-style-type: '→ '; padding-left: 20px;">
+            <li>Secure OTP Authentication</li>
+            <li>Local Lockbox via Web3b0x</li>
+            <li>On-chain operations for agents</li>
+          </ul>
+          <a href="skill.html" class="btn-launch" style="display: inline-block; margin-top: 24px;">Read the Skill Doc</a>
+        </div>
+      </div>
+    </section>
+
     <section class="section" style="text-align: center">
       <h2>Ready to onboard someone?</h2>
       <p style="color: var(--text-dim); margin-top: 16px; margin-bottom: 32px">
-        Make Web3 accessible to everyone, starting with your friends.
+        Choose the path that fits your vibe. Humans or Machines, we've got you.
       </p>
-      <a href="base_pay.html" class="btn-launch" style="padding: 16px 48px"
-        >Send First Digital Dollar</a
-      >
+      <div style="display: flex; gap: 16px; justify-content: center">
+        <a href="base_pay.html" class="btn-launch" style="padding: 16px 48px">Human Path</a>
+        <a href="skill.html" class="btn-launch" style="padding: 16px 48px; background: var(--glass); border: 1px solid var(--border);">AI Path</a>
+      </div>
     </section>
 
     <footer>
