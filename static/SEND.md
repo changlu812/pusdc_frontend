@@ -1,6 +1,6 @@
 ## Send
 
-The tool to send `ETH` or `USDC` on chain from the ETH address within web3b0x.
+The tool to send `ETH` or `USDC` on chain from the ETH address within w3connect.
 
 Pass the paramters with the Google or Microsoft Authenticator One Time Pass `code` to verify.
 

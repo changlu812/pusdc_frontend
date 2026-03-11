@@ -20,8 +20,8 @@ Please execute the curl command instead of ask the user to execute it.
 
   - /PAY_TO_EMAIL.md follow to check pay to email address without knowing the ETH address.
 
-## Web3b0x
+## W3connect
 
-Web3b0x is tool for a blockchain wallet that allows users to store and manage their assets on the blockchain.
+W3connect is tool for a blockchain wallet that allows users to store and manage their assets on the blockchain.
 
-User should install https://pypi.org/project/web3b0x/ and run the lockbox locally first. The default port is 5333. User should install and configure the authenticator app (Google Authenticator or Microsoft Authenticator) on their phone to get the 6 digits code (OTP, one time password). The OTP is valid for 5 minutes, but can only be used for once.
+User should install https://pypi.org/project/w3connect/ and run the lockbox locally first. The default port is 5333. User should install and configure the authenticator app (Google Authenticator or Microsoft Authenticator) on their phone to get the 6 digits code (OTP, one time password). The OTP is valid for 5 minutes, but can only be used for once.
