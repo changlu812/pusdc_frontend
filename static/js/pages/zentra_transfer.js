@@ -4,10 +4,10 @@
 import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm";
 import {
     LITE_API,
-    LITE_ADDR,
-    USDC_ADDR,
-    ERC20_ABI,
-    LITE_ABI,
+    // LITE_ADDR,
+    // USDC_ADDR,
+    // ERC20_ABI,
+    // LITE_ABI,
     getAuthToken,
     setAuthToken,
     authenticatedFetch,

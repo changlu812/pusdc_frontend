@@ -5,46 +5,46 @@
 export const LITE_API = "http://127.0.0.1:8093";
 // export const LITE_API = "https://api.pusdc.xyz";
 
-export const INBOX_ADDR = "0x5F40E750B1c5dCe3c55942e35DA0D4Ec83cBd80D";
-export const LITE_ADDR = "0x9c2f26F7Da88A8B9b0C35332510AB3763C73BD61";
-export const USDC_ADDR = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+// export const INBOX_ADDR = "0x5F40E750B1c5dCe3c55942e35DA0D4Ec83cBd80D";
+// export const LITE_ADDR = "0x9c2f26F7Da88A8B9b0C35332510AB3763C73BD61";
+// export const USDC_ADDR = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
-export const ERC20_ABI = [
-    "function approve(address spender, uint256 amount) public returns (bool)",
-    "function allowance(address owner, address spender) public view returns (uint256)",
-    "function balanceOf(address account) public view returns (uint256)",
-    "function decimals() public view returns (uint8)",
-];
+// export const ERC20_ABI = [
+//     "function approve(address spender, uint256 amount) public returns (bool)",
+//     "function allowance(address owner, address spender) public view returns (uint256)",
+//     "function balanceOf(address account) public view returns (uint256)",
+//     "function decimals() public view returns (uint8)",
+// ];
 
-export const LITE_ABI = [
-    "function privacyDeposit(uint256 amount, bytes amountCipher, bytes currentBalanceCipher, bytes updatedBalanceCipher, bytes signature) external",
-    "function privacyWithdraw(uint256 amount, bytes amountCipher, bytes currentBalanceCipher, bytes updatedBalanceCipher, bytes signature) external",
-    "function privacyTransfer(address toAddr, bytes amountCipher, bytes currentSenderBalanceCipher, bytes updatedSenderBalanceCipher, bytes currentReceiverBalanceCipher, bytes updatedReceiverBalanceCipher, bytes signature) external",
-    "function privacyBalances(address) public view returns (bytes)",
-    "function privacyNonces(address) public view returns (uint256)",
-    "function chain_identifier() public view returns (string)",
-    "function tick() public view returns (string)",
-    "function erc20() public view returns (address)",
-    "function witness() public view returns (address)",
-    "function live() public view returns (bool)",
-    "function total() public view returns (uint256)",
-    "event PrivacyDeposit(address indexed addr, uint256 amount)",
-    "event PrivacyWithdraw(address indexed addr, uint256 amount)",
-    "event PrivacyTransfer(address indexed fromAddr, address indexed toAddr, bytes amountCipher)",
-];
+// export const LITE_ABI = [
+//     "function privacyDeposit(uint256 amount, bytes amountCipher, bytes currentBalanceCipher, bytes updatedBalanceCipher, bytes signature) external",
+//     "function privacyWithdraw(uint256 amount, bytes amountCipher, bytes currentBalanceCipher, bytes updatedBalanceCipher, bytes signature) external",
+//     "function privacyTransfer(address toAddr, bytes amountCipher, bytes currentSenderBalanceCipher, bytes updatedSenderBalanceCipher, bytes currentReceiverBalanceCipher, bytes updatedReceiverBalanceCipher, bytes signature) external",
+//     "function privacyBalances(address) public view returns (bytes)",
+//     "function privacyNonces(address) public view returns (uint256)",
+//     "function chain_identifier() public view returns (string)",
+//     "function tick() public view returns (string)",
+//     "function erc20() public view returns (address)",
+//     "function witness() public view returns (address)",
+//     "function live() public view returns (bool)",
+//     "function total() public view returns (uint256)",
+//     "event PrivacyDeposit(address indexed addr, uint256 amount)",
+//     "event PrivacyWithdraw(address indexed addr, uint256 amount)",
+//     "event PrivacyTransfer(address indexed fromAddr, address indexed toAddr, bytes amountCipher)",
+// ];
 
-export const INBOX_ABI = [
-    "function chain_identifier() public view returns (string)",
-    "function erc20() public view returns (address)",
-    "function witness() public view returns (address)",
-    "function total() public view returns (uint256)",
-    "function withdraw(uint256 amount) external",
-    "function sendFund(uint256 amount) external",
-    "function acceptFund(uint256 txNo, address toAddr, uint256 convertAmount, bytes signature) external",
-    "function revokeFund(uint256 txNo) external",
-    "function inboxTransfers(uint256 txNo) public view returns (address fromAddr, address toAddr, uint256 amount, bool finished)",
-    "function inboxBalances(address) public view returns (uint256)",
-];
+// export const INBOX_ABI = [
+//     "function chain_identifier() public view returns (string)",
+//     "function erc20() public view returns (address)",
+//     "function witness() public view returns (address)",
+//     "function total() public view returns (uint256)",
+//     "function withdraw(uint256 amount) external",
+//     "function sendFund(uint256 amount) external",
+//     "function acceptFund(uint256 txNo, address toAddr, uint256 convertAmount, bytes signature) external",
+//     "function revokeFund(uint256 txNo) external",
+//     "function inboxTransfers(uint256 txNo) public view returns (address fromAddr, address toAddr, uint256 amount, bool finished)",
+//     "function inboxBalances(address) public view returns (uint256)",
+// ];
 
 const TOKEN_KEY = "pusdc_auth_token";
 
