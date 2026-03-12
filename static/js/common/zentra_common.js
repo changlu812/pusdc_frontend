@@ -2,15 +2,13 @@
 // 目标：把高重复且稳定的配置/工具统一维护，降低多页面改动成本。
 
 // 后端 API 根地址。后续若切环境，只需改这一处。
-// export const LITE_API = "http://127.0.0.1:8093";
-export const LITE_API = "https://api.pusdc.xyz";
+export const LITE_API = "http://127.0.0.1:8093";
+// export const LITE_API = "https://api.pusdc.xyz";
 
-// 合约地址集中管理，避免分散在多个页面脚本里。
 export const INBOX_ADDR = "0x5F40E750B1c5dCe3c55942e35DA0D4Ec83cBd80D";
 export const LITE_ADDR = "0x9c2f26F7Da88A8B9b0C35332510AB3763C73BD61";
 export const USDC_ADDR = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
-// 常用 ABI：统一保留完整字段，页面按需调用。
 export const ERC20_ABI = [
     "function approve(address spender, uint256 amount) public returns (bool)",
     "function allowance(address owner, address spender) public view returns (uint256)",
