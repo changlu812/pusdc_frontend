@@ -4,6 +4,10 @@
 import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm";
 import {
     LITE_API,
+    ZENTRA_API_URL,
+    ZEN_PROTOCOL,
+    ZEN_ADDR,
+    NETWORK_NAME,
     // LITE_ADDR,
     // USDC_ADDR,
     // ERC20_ABI,
@@ -17,6 +21,7 @@ import {
     switchNetwork,
     pollCancelFlag,
     waitForBackendStateChange,
+    parseJsonWithBigInt,
 } from "../common/zentra_common.js";
 import {
     initWalletUx,
@@ -222,8 +227,8 @@ async function connect() {
             return;
         }
 
-        usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
-        liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
+        // usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
+        // liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
 
         try {
             decimals = await usdcContract.decimals();
@@ -252,19 +257,19 @@ async function updateBalance() {
 
     // 更新 Wallet Balance
     try {
-        if (!usdcContract) {
-            console.warn("USDC contract not initialized");
-            return;
-        }
-        const bal = await usdcContract.balanceOf(account);
-        const formattedBal = ethers.formatUnits(bal, decimals);
+        // console.log("account:", account);
+        const publicRes = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-USDC-balance:${account.toLowerCase()}`);
+        const publicData = await parseJsonWithBigInt(publicRes);
+        const bal = publicData.result;
+        // console.log("USDC Balance:", bal);
+        const formattedBal = ethers.formatUnits(bal, 6);
         balanceEl.innerText = `${formattedBal} USDC`;
+
     } catch (err) {
         console.error("Error updating USDC balance:", err.message);
         // 不抛出错误，继续更新 privacy balance
     }
 
-    // 更新 Hidden Balance
     try {
         if (!liteContract) {
             console.warn("LITE contract not initialized");
@@ -541,8 +546,8 @@ async function checkLoginStatus() {
         account = session.loginAddress;
         signer = await provider.getSigner();
 
-        usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
-        liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
+        // usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
+        // liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
 
         try {
             decimals = await usdcContract.decimals();

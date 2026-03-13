@@ -2,6 +2,11 @@
 // 目标：把高重复且稳定的配置/工具统一维护，降低多页面改动成本。
 
 // 后端 API 根地址。后续若切环境，只需改这一处。
+export const ZENTRA_API_URL = "https://testnet3.zentra.dev";
+export const ZEN_PROTOCOL = "zentest3";
+export const ZEN_ADDR = '0x00000000000000000000000000000000007a656e'; // hex of 'zen'
+export const NETWORK_NAME = 'base';
+
 export const LITE_API = "http://127.0.0.1:8093";
 // export const LITE_API = "https://api.pusdc.xyz";
 
@@ -258,3 +263,14 @@ export async function waitForBackendStateChange(
 
     throw new Error("Timeout waiting for backend");
 }
+
+export const parseJsonWithBigInt = async (response) => {
+    const text = await response.text();
+    const fixedText = text.replace(/([\[,:]\s*)(\d{16,})/g, '$1"$2"');
+    return JSON.parse(fixedText, (key, value) => {
+        if (typeof value === 'string' && /^\d{16,}$/.test(value)) {
+            return BigInt(value);
+        }
+        return value;
+    });
+};

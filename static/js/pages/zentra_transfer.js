@@ -4,6 +4,10 @@
 import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm";
 import {
     LITE_API,
+    ZENTRA_API_URL,
+    ZEN_PROTOCOL,
+    ZEN_ADDR,
+    NETWORK_NAME,
     // LITE_ADDR,
     // USDC_ADDR,
     // ERC20_ABI,
@@ -17,6 +21,7 @@ import {
     switchNetwork,
     pollCancelFlag,
     waitForBackendStateChange,
+    parseJsonWithBigInt,
 } from "../common/zentra_common.js";
 import {
     initWalletUx,
