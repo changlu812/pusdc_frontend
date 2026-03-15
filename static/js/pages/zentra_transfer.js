@@ -8,11 +8,6 @@ import {
     ZEN_PROTOCOL,
     ZEN_ADDR,
     NETWORK_NAME,
-    // LITE_ADDR,
-    // USDC_ADDR,
-    // ERC20_ABI,
-    // LITE_ABI,
-    getAuthToken,
     setAuthToken,
     authenticatedFetch,
     updateNavBtn,
@@ -28,13 +23,16 @@ import {
     ensureMetaMaskInstalled,
     handleWalletReject,
 } from "../common/wallet_ux.js";
-// 公共逻辑来自 base_common：统一配置、鉴权请求、网络切换、导航按钮状态。
-// 当前文件保留页面专属流程，便于后续继续拆分到更细的业务模块。
 
 let provider, signer, account;
-let usdcContract, liteContract;
 let decimals = 6;
 let detachAccountsChanged = () => { };
+
+// Global variables for Modal
+let approvePromptModal = null;
+let approvePromptContinue = null;
+let approvePromptCancel = null;
+let approvePromptResolve = null;
 
 const connectBtn = document.getElementById("connectBtn");
 const bridgeUI = document.getElementById("bridgeUI");
@@ -54,6 +52,90 @@ function enterLoggedOutState(message = "") {
     }
 }
 
+function ensureApprovePromptModal() {
+    if (!approvePromptModal) {
+        approvePromptModal = document.getElementById("approvePromptModal");
+        if (!approvePromptModal) {
+            approvePromptModal = document.createElement("div");
+            approvePromptModal.id = "approvePromptModal";
+            approvePromptModal.className = "wallet-ux-modal";
+            approvePromptModal.setAttribute("aria-hidden", "true");
+            approvePromptModal.innerHTML = `
+        <div class="wallet-ux-modal-content" role="dialog" aria-modal="true" aria-labelledby="approvePromptTitle">
+          <h3 id="approvePromptTitle">Two-Step Process</h3>
+          <p>This is just the first step (approval). You will be asked to sign again in the second step to complete the actual transfer.</p>
+          <div class="wallet-ux-modal-actions">
+            <button id="approvePromptCancel" class="wallet-ux-btn wallet-ux-btn-secondary" type="button">Cancel</button>
+            <button id="approvePromptContinue" class="wallet-ux-btn wallet-ux-btn-primary" type="button">Continue</button>
+          </div>
+        </div>
+      `;
+            document.body.appendChild(approvePromptModal);
+        }
+    }
+
+    approvePromptContinue = document.getElementById("approvePromptContinue");
+    approvePromptCancel = document.getElementById("approvePromptCancel");
+
+    if (approvePromptContinue) {
+        approvePromptContinue.removeEventListener("click", handleApproveContinue);
+        approvePromptContinue.addEventListener("click", handleApproveContinue);
+    }
+
+    if (approvePromptCancel) {
+        approvePromptCancel.removeEventListener("click", handleApproveCancel);
+        approvePromptCancel.addEventListener("click", handleApproveCancel);
+    }
+}
+
+function handleApproveContinue() {
+    if (approvePromptResolve) {
+        approvePromptResolve(true);
+        approvePromptResolve = null;
+    }
+    setTimeout(() => {
+        hideApprovePromptModal();
+    }, 100);
+}
+
+function handleApproveCancel() {
+    if (approvePromptResolve) {
+        approvePromptResolve(false);
+        approvePromptResolve = null;
+    }
+    setTimeout(() => {
+        hideApprovePromptModal();
+    }, 100);
+}
+
+function showApprovePromptModal() {
+    ensureApprovePromptModal();
+    return new Promise((resolve) => {
+        approvePromptResolve = resolve;
+        approvePromptModal.classList.add("open");
+        approvePromptModal.setAttribute("aria-hidden", "false");
+        setTimeout(() => {
+            if (approvePromptContinue) {
+                approvePromptContinue.focus();
+            }
+        }, 50);
+    });
+}
+
+function hideApprovePromptModal() {
+    if (approvePromptModal) {
+        if (
+            document.activeElement === approvePromptContinue ||
+            document.activeElement === approvePromptCancel
+        ) {
+            actionBtn.focus();
+        }
+        approvePromptModal.classList.remove("open");
+        approvePromptModal.setAttribute("aria-hidden", "true");
+    }
+    approvePromptResolve = null;
+}
+
 async function connect() {
     if (
         !ensureMetaMaskInstalled({
@@ -68,12 +150,12 @@ async function connect() {
 
     try {
         const network = await provider.getNetwork();
-        if (network.chainId !== 8453n) {
-            showStatus("Switching to Base Mainnet...", "info");
+        if (network.chainId !== 84532n) {
+            showStatus("Switching to Base Sepolia...", "info");
             const switched = await switchNetwork();
             if (!switched) {
                 showStatus(
-                    "Please switch to Base Mainnet (Chain ID 8453) manually",
+                    "Please switch to Base Sepolia (Chain ID 84532) manually",
                     "error",
                 );
                 return;
@@ -85,12 +167,14 @@ async function connect() {
         account = accounts[0];
         signer = await provider.getSigner();
 
-        // Login
+        // Auth Login Flow
         const timestamp = Math.floor(Date.now() / 1000);
         const msg = `Login to PUSDC Gateway at ${timestamp}`;
+
         try {
-            showStatus("Please sign login message...", "info");
+            showStatus("Please sign the login message...", "info");
             const signature = await signer.signMessage(msg);
+
             const loginRes = await fetch(`${LITE_API}/api/auth/login`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -100,36 +184,25 @@ async function connect() {
                     timestamp: timestamp.toString(),
                 }),
             });
+
             const loginData = await loginRes.json();
             if (loginRes.ok && loginData.token) {
                 setAuthToken(loginData.token);
-                showStatus("Logged in", "success");
             } else {
                 throw new Error(loginData.error || "Login failed");
             }
-        } catch (e) {
-            console.error(e);
-            if (handleWalletReject(e, () => connect())) {
+        } catch (loginErr) {
+            console.error(loginErr);
+            if (handleWalletReject(loginErr, () => connect())) {
                 return;
             }
-            showStatus("Login failed: " + e.message, "error");
+            showStatus("Login failed: " + loginErr.message, "error");
             return;
-        }
-
-        usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
-        liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
-
-        try {
-            decimals = await usdcContract.decimals();
-        } catch (e) {
-            console.warn(
-                "Could not fetch decimals, using default 18. This usually happens if the address is not a contract.",
-            );
-            decimals = 6;
         }
 
         connectBtn.style.display = "none";
         bridgeUI.style.display = "block";
+        showStatus("Connected & Logged In", "success");
         updateNavBtn(true, account);
         updateBalance();
     } catch (err) {
@@ -143,37 +216,32 @@ async function connect() {
 
 async function updateBalance() {
     try {
-        // Wallet Balance
-        const bal = await usdcContract.balanceOf(account);
-        balanceEl.innerText = `${ethers.formatUnits(bal, decimals)} USDC`;
+        const publicRes = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-USDC-balance:${account.toLowerCase()}`);
+        const publicData = await parseJsonWithBigInt(publicRes);
+        const bal = publicData.result;
+        const formattedBal = ethers.formatUnits(bal, 6);
+        balanceEl.innerText = `${formattedBal} USDC`;
+    } catch (err) {
+        console.error("Error updating USDC balance:", err.message);
+    }
 
-        // Hidden Balance
-        const privacyBalCipher = await liteContract.privacyBalances(account);
-        if (!privacyBalCipher || privacyBalCipher === "0x") {
-            document.getElementById("privacyBalance").innerText = "0.00 PUSDC";
-            return;
-        }
-
+    try {
         const resp = await authenticatedFetch(
-            `${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`,
+            `${LITE_API}/api/zentra/usdc/decrypt_balance`,
         );
         const data = await resp.json();
         if (data.status === "ok") {
+            const formattedPrivacyBal = ethers.formatUnits(
+                data.balance.toString(),
+                decimals,
+            );
             document.getElementById("privacyBalance").innerText =
-                `${ethers.formatUnits(data.balance.toString(), decimals)} PUSDC`;
+                `${formattedPrivacyBal} PUSDC`;
+        } else {
+            console.error("Failed to decrypt balance:", data.error);
         }
     } catch (err) {
-        console.error("Error updating balances:", err);
-    }
-}
-
-function setUIState(success = false) {
-    if (success) {
-        actionBtn.innerText = "Transfer Successful";
-        actionBtn.disabled = true;
-    } else {
-        actionBtn.innerText = "Transfer PUSDC";
-        actionBtn.disabled = false;
+        console.error("Error updating Hidden Balance:", err.message);
     }
 }
 
@@ -196,14 +264,25 @@ async function handleAction() {
         showStatus("Fetching current privacy state...", "info");
         setBtnLoading(true);
 
+        const previousBalance =
+            document.getElementById("privacyBalance").innerText;
+
         // 1. Get current Nonces and Balances
-        const senderNonce = await liteContract.privacyNonces(account);
-        const senderBalance = await liteContract.privacyBalances(account);
-        const receiverBalance = await liteContract.privacyBalances(toAddr);
+        const rsp = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_nonce:${account.toLowerCase()}`);
+        const res = await rsp.json();
+        const nonce = res.result || 0;
+
+        const rsp2 = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_balance:${account.toLowerCase()}`);
+        const res2 = await parseJsonWithBigInt(rsp2);
+        const senderBalance = res2.result;
+
+        const rsp3 = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_balance:${toAddr.toLowerCase()}`);
+        const res3 = await parseJsonWithBigInt(rsp3);
+        const receiverBalance = res3.result;
 
         // 2. Fetch signature from API
         showStatus("Requesting witness signature...", "info");
-        const apiUrl = `${LITE_API}/api/base/usdc/sign_transfer?from_addr=${account}&to_addr=${toAddr}&amount=${parsedAmount.toString()}&nonce=${(senderNonce + 1n).toString()}&sender_balance=${senderBalance || "0x"}&receiver_balance=${receiverBalance || "0x"}`;
+        const apiUrl = `${LITE_API}/api/zentra/usdc/sign_transfer?from_addr=${account}&to_addr=${toAddr}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1).toString()}&sender_balance=${senderBalance || "0x"}&receiver_balance=${receiverBalance || "0x"}`;
 
         const response = await authenticatedFetch(apiUrl);
         const data = await response.json();
@@ -216,22 +295,24 @@ async function handleAction() {
 
         // 3. Call privacyTransfer
         showStatus("Confirming transaction in wallet...", "info");
-        const previousBalance = document.getElementById("privacyBalance").innerText;
-
         try {
-            const tx = await liteContract.privacyTransfer(
-                toAddr,
-                data.amount_cipher,
-                data.current_sender_balance,
-                data.updated_sender_balance,
-                data.current_receiver_balance,
-                data.updated_receiver_balance,
-                data.signature,
-            );
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+
+            const payload = {
+                p: ZEN_PROTOCOL,
+                f: "privacy_transfer",
+                a: ["PUSDC", toAddr, data.amount_cipher, nonce + 1, data.signature]
+            };
+            const callPayload = JSON.stringify(payload);
+
+            const tx = await signer.sendTransaction({
+                to: ZEN_ADDR,
+                data: ethers.hexlify(ethers.toUtf8Bytes(callPayload))
+            });
 
             showStatus("Waiting for confirmation...", "info");
 
-            // 并行轮询后端和等链上确认
             await Promise.all([
                 tx.wait().catch(() => null),
                 waitForBackendStateChange(
@@ -244,13 +325,10 @@ async function handleAction() {
         } catch (txErr) {
             const errMsg = txErr.message || txErr.toString();
             if (errMsg.includes("nonce") || errMsg.includes("BAD_DATA")) {
-                showStatus("Proceeding with backend confirmation...", "warning");
-                await waitForBackendStateChange(
-                    updateBalance,
-                    previousBalance,
-                    showStatus,
-                    300000,
-                ).catch(() => null);
+                showStatus(
+                    "Wallet reported parsing issue, but proceeding with backend confirmation...",
+                    "warning",
+                );
             } else {
                 throw txErr;
             }
@@ -258,17 +336,24 @@ async function handleAction() {
 
         await updateBalance();
         showStatus("Privacy Transfer successful!", "success");
-        setUIState(true);
+        actionBtn.innerText = "Transfer Successful";
+        actionBtn.disabled = true;
+
         amountInput.value = "";
         document.getElementById("toAddr").value = "";
+
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
         setBtnLoading(false);
+        actionBtn.innerText = "Transfer PUSDC";
+        actionBtn.disabled = false;
     } catch (err) {
-        console.error(err);
+        console.error("Action failed:", err);
         if (handleWalletReject(err, () => handleAction())) {
             setBtnLoading(false);
             return;
         }
-        showStatus(err.message || "Transfer failed", "error");
+        showStatus(err.reason || err.message || "Transaction failed", "error");
         setBtnLoading(false);
     }
 }
@@ -287,15 +372,12 @@ function setBtnLoading(loading) {
     actionBtn.disabled = loading;
     if (loading) {
         actionBtn.innerHTML = `<div class="loader"></div> Processing...`;
-    } else {
-        actionBtn.innerText = "Transfer PUSDC";
     }
 }
 
 connectBtn.addEventListener("click", connect);
 actionBtn.addEventListener("click", handleAction);
 
-// 页面卸载时取消轮询
 window.addEventListener("beforeunload", () => {
     pollCancelFlag = true;
 });
@@ -315,15 +397,6 @@ async function checkLoginStatus() {
         account = session.loginAddress;
         signer = await provider.getSigner();
 
-        usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
-        liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
-
-        try {
-            decimals = await usdcContract.decimals();
-        } catch (e) {
-            decimals = 6;
-        }
-
         connectBtn.style.display = "none";
         bridgeUI.style.display = "block";
         showStatus("Restored Session", "success");
@@ -337,6 +410,7 @@ async function checkLoginStatus() {
 
 async function init() {
     initWalletUx();
+    ensureApprovePromptModal();
 
     if (
         !ensureMetaMaskInstalled({
