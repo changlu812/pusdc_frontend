@@ -9,10 +9,10 @@ import {
   NETWORK_NAME,
   // LITE_ADDR,
   // USDC_ADDR,
-  INBOX_ADDR,
+  // INBOX_ADDR,
   // ERC20_ABI,
   // LITE_ABI,
-  INBOX_ABI,
+  // INBOX_ABI,
   getAuthToken,
   setAuthToken,
   authenticatedFetch,
@@ -239,19 +239,13 @@ async function connect() {
     // liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
     // inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
 
-    try {
-      decimals = await usdcContract.decimals();
-    } catch (e) {
-      console.warn("Using default decimals 6");
-      decimals = 6;
-    }
+    decimals = 6;
 
     connectBtn.style.display = "none";
     bridgeUI.style.display = "block";
     showStatus("Connected & Logged In", "success");
     updateNavBtn(true, account);
     updateBalance();
-    checkAllowance();
   } catch (err) {
     console.error(err);
     if (handleWalletReject(err, () => connect())) {
@@ -280,57 +274,38 @@ async function updateBalance() {
   }
 
   try {
-    if (!liteContract) {
-      console.warn("LITE contract not initialized");
-      return;
-    }
-    const privacyBalCipher = await liteContract.privacyBalances(account);
-    const privacyBalanceEl = document.getElementById("privacyBalance");
-    if (privacyBalanceEl) {
-      if (!privacyBalCipher || privacyBalCipher === "0x") {
-        privacyBalanceEl.innerText = "0.00 PUSDC";
-      } else {
-        const resp = await authenticatedFetch(
-          `${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`,
-        );
-        const data = await resp.json();
-        if (data.status === "ok") {
-          privacyBalanceEl.innerText = `${ethers.formatUnits(data.balance.toString(), decimals)} PUSDC`;
-        }
-      }
-    }
 
-    // Claimable USDC
-    const inboxBalanceValue = await inboxContract.inboxBalances(account);
+    const resp = await authenticatedFetch(
+        `${LITE_API}/api/zentra/usdc/decrypt_balance`,
+    );
+    const data = await resp.json();
+    console.log(data);
+    if (data.status === "ok") {
+      const formattedPrivacyBal = ethers.formatUnits(
+        data.balance.toString(),
+        decimals,
+      );
+      document.getElementById("privacyBalance").innerText =
+        `${formattedPrivacyBal} PUSDC`;
+    } else {
+      console.error("Failed to decrypt balance:", data.error);
+    }
+  } catch (err) {
+    console.error("Error updating Hidden Balance:", err.message);
+    // 继续执行，不中断
+  }
+
+  // Claimable USDC
+  try {
+    const inboxRes = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-inbox-balance:${account.toLowerCase()}`);
+    const inboxData = await parseJsonWithBigInt(inboxRes);
+    const inboxBalanceValue = inboxData.result;
     const inboxBalanceEl = document.getElementById("claimableBalance");
     if (inboxBalanceEl) {
       inboxBalanceEl.innerText = `${ethers.formatUnits(inboxBalanceValue.toString(), decimals)} USDC`;
     }
   } catch (err) {
-    console.error("Error updating balances:", err);
-  }
-}
-
-async function checkAllowance() {
-  const amount = amountInput.value;
-  if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
-    setUIState(1);
-    return;
-  }
-
-  try {
-    const parsedAmount = ethers.parseUnits(amount, decimals);
-    const allowance = await usdcContract.allowance(account, INBOX_ADDR);
-    console.log(allowance);
-    console.log(parsedAmount);
-
-    if (allowance >= parsedAmount) {
-      setUIState(2);
-    } else {
-      setUIState(1);
-    }
-  } catch (err) {
-    console.error(err);
+    console.error("Error updating claimable balance:", err);
   }
 }
 
@@ -364,158 +339,94 @@ async function handleAction() {
 
   const parsedAmount = ethers.parseUnits(amount, decimals);
 
-  const allowance = await usdcContract.allowance(account, INBOX_ADDR);
-  console.log(allowance);
-  console.log(parsedAmount);
+  // Step: Deposit
+  showStatus("Fetching current privacy state...", "info");
+  setBtnLoading(true);
 
-  if (allowance < parsedAmount) {
-    // 显示批准提示
-    const userConfirmed = await showApprovePromptModal();
-    if (!userConfirmed) {
-      return;
-    }
+  // 保存交易前的 balance，用于后续轮询对比
+  const previousBalance =
+      document.getElementById("privacyBalance").innerText;
 
-    // Step 1: Approve
-    showStatus("Approving USDC...", "info");
-    setBtnLoading(true);
-    // try {
-    try {
-      const tx = await usdcContract.approve(INBOX_ADDR, parsedAmount);
-      // 尝试等待交易确认，但捕获可能的错误
-      await tx.wait();
-    } catch (waitErr) {
-      // 捕获nonce解析错误，交易可能已经成功
-      console.warn(
-        "Transaction wait error (nonce parsing), but transaction may have succeeded:",
-        waitErr,
-      );
-    }
-    showStatus("Approval successful!", "success");
-    setUIState(2);
-    setBtnLoading(false);
-    // } catch (approveErr) {
-    //   console.error("Approval error:", approveErr);
-    //   // 检查是否是nonce解析错误
-    //   if (
-    //     approveErr.code === "BAD_DATA" &&
-    //     approveErr.message.includes("nonce")
-    //   ) {
-    //     // 交易可能已经成功，继续执行
-    //     showStatus("Approval successful!", "success");
-    //     setUIState(2);
-    //     setBtnLoading(false);
-    //   } else {
-    //     // 其他错误，显示错误信息
-    //     showStatus(
-    //       approveErr.reason || approveErr.message || "Approval failed",
-    //       "error",
-    //     );
-    //     setBtnLoading(false);
-    //   }
-    // }
-  } else {
-    // Step 2: Deposit
-    showStatus("Fetching current privacy state...", "info");
-    setBtnLoading(true);
+  // 1. Get current Nonce and Balance from API
+  const rsp = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_nonce:${account.toLowerCase()}`);
+  const res = await rsp.json();
+  const nonce = res.result || 0;
 
-    // 保存交易前的 balance，用于后续轮询对比
-    const previousBalance =
-        document.getElementById("privacyBalance").innerText;
+  const rsp2 = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-USDC-balance:${account.toLowerCase()}`);
+  const res2 = await parseJsonWithBigInt(rsp2);
+  const balance = res2.result;
 
-    // 1. Get current Nonce and Balance from contract
-    const nonce = await liteContract.privacyNonces(account);
-    const balance = await liteContract.privacyBalances(account);
+  // 2. Fetch signature and encrypted amounts from API
+  showStatus("Requesting witness signature...", "info");
+  const apiUrl = `${LITE_API}/api/zentra/usdc/sign_deposit?addr=${account}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1).toString()}&balance=${balance || "0x"}`;
 
-    // 2. Fetch signature and encrypted amounts from API
-    showStatus("Requesting witness signature...", "info");
-    const apiUrl = `${LITE_API}/api/base/usdc/sign_deposit?addr=${account}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1n).toString()}&balance=${balance || "0x"}`;
+  const response = await authenticatedFetch(apiUrl);
+  const responseText = await response.text();
+  const data = parseJsonWithBigInt(responseText);
 
-    const response = await authenticatedFetch(apiUrl);
-    const responseText = await response.text();
-    const data = parseJsonWithBigInt(responseText);
-
-    if (data.status !== "ok") {
-      throw new Error(
-        data.error || "Failed to get witness signature from server",
-      );
-    }
-
-    // 3. Call privacyDeposit
-    showStatus("Confirming transaction in wallet...", "info");
-    let receipt = null;
-    try {
-      const tx = await liteContract.privacyDeposit(
-        parsedAmount,
-        data.amount_cipher,
-        data.current_balance,
-        data.updated_balance,
-        data.signature,
-      );
-      showStatus("Waiting for confirmation...", "info");
-
-      // 并行轮询后端和等链上确认（两个同时进行，任何一个失败都继续）
-      [receipt] = await Promise.all([
-        tx.wait().catch(() => null),
-        waitForBackendStateChange(
-          updateBalance,
-          previousBalance,
-          showStatus,
-          300000,
-        ).catch(() => null),
-      ]);
-    } catch (txErr) {
-      // 捕获 ethers 解析错误（如 nonce: undefined）
-      // 但交易可能已经被提交到链上了
-      const errMsg = txErr.message || txErr.toString();
-
-      // 检查是否是因为钱包解析问题而非真正的交易失败
-      if (errMsg.includes("nonce") || errMsg.includes("BAD_DATA")) {
-        showStatus(
-          "Wallet reported parsing issue, but proceeding with backend confirmation...",
-          "warning",
-        );
-        // 继续轮询后端来确认交易
-      } else {
-        // 真正的交易失败
-        throw txErr;
-      }
-    }
-
-    let txNo = null;
-    if (receipt) {
-      for (const log of receipt.logs) {
-        if (log.address.toLowerCase() === LITE_ADDR.toLowerCase()) {
-          try {
-            const parsed = liteContract.interface.parseLog(log);
-            if (parsed && parsed.name === "PrivacyDeposit") {
-              // Assuming PrivacyDeposit has txNo or similar; adjust if needed
-              txNo = parsed.args.amount; // Placeholder, replace with actual txNo field if available
-              console.log("Found txNo:", txNo.toString());
-              break;
-            }
-          } catch (e) {
-            // Not our event or parse error, skip
-          }
-        }
-      }
-    }
-
-    // ✨ 已在上面 Promise.race() 中并行执行，这里只需更新余额
-    await updateBalance();
-
-    if (txNo) {
-      showStatus(`Payment successful! txNo: ${txNo.toString()}`, "success");
-    } else {
-      showStatus("Payment successful!", "success");
-    }
-    setUIState(3);
-    amountInput.value = "";
-
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setBtnLoading(false, false);
-    setUIState(1);
-    checkAllowance();
+  if (data.status !== "ok") {
+    throw new Error(
+      data.error || "Failed to get witness signature from server",
+    );
   }
+
+  // 3. Call privacyDeposit via instruction
+  showStatus("Confirming transaction in wallet...", "info");
+  let txHash = null;
+  try {
+    const payload = {
+      p: ZEN_PROTOCOL,
+      f: "privacy_deposit",
+      a: ["PUSDC", data.amount, data.amount_cipher, nonce + 1, data.signature]
+    };
+    const callPayload = JSON.stringify(payload);
+
+    const tx = await signer.sendTransaction({
+      to: ZEN_ADDR,
+      data: ethers.hexlify(ethers.toUtf8Bytes(callPayload))
+    });
+
+    txHash = tx.hash;
+    showStatus("Waiting for confirmation...", "info");
+
+    // 并行轮询后端和等链上确认（两个同时进行，任何一个失败都继续）
+    await Promise.all([
+      tx.wait().catch(() => null),
+      waitForBackendStateChange(
+        updateBalance,
+        previousBalance,
+        showStatus,
+        300000,
+      ).catch(() => null),
+    ]);
+  } catch (txErr) {
+    // 捕获 ethers 解析错误（如 nonce: undefined）
+    // 但交易可能已经被提交到链上了
+    const errMsg = txErr.message || txErr.toString();
+
+    // 检查是否是因为钱包解析问题而非真正的交易失败
+    if (errMsg.includes("nonce") || errMsg.includes("BAD_DATA")) {
+      showStatus(
+        "Wallet reported parsing issue, but proceeding with backend confirmation...",
+        "warning",
+      );
+      // 继续轮询后端来确认交易
+    } else {
+      // 真正的交易失败
+      throw txErr;
+    }
+  }
+
+  // 已在上面 Promise.all() 中并行执行，这里只需更新余额
+  await updateBalance();
+
+  showStatus("Payment successful!", "success");
+  setUIState(3);
+  amountInput.value = "";
+
+  await new Promise((resolve) => setTimeout(resolve, 2000));
+  setBtnLoading(false);
+  setUIState(1);
   // } catch (err) {
   //   console.error("Action failed:", err);
   //   if (handleWalletReject(err, () => handleAction())) {
@@ -543,19 +454,17 @@ function showStatus(msg, type, allowHtml = false) {
           : "info-msg";
 }
 
-function setBtnLoading(loading, shouldRefreshState = true) {
+function setBtnLoading(loading) {
   actionBtn.disabled = loading;
   if (loading) {
     const originalText = actionBtn.innerText;
     actionBtn.innerHTML = `<div class="loader"></div> Processing...`;
-  } else if (shouldRefreshState) {
-    checkAllowance();
   }
 }
 
 connectBtn.addEventListener("click", connect);
 actionBtn.addEventListener("click", handleAction);
-amountInput.addEventListener("input", checkAllowance);
+// amountInput.addEventListener("input", checkAllowance);
 
 // 页面卸载时取消轮询
 window.addEventListener("beforeunload", () => {
@@ -577,9 +486,9 @@ async function checkLoginStatus() {
     account = session.loginAddress;
     signer = await provider.getSigner();
 
-    usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
-    liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
-    inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
+    // usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
+    // liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
+    // inboxContract = new ethers.Contract(INBOX_ADDR, INBOX_ABI, signer);
 
     try {
       decimals = await usdcContract.decimals();
@@ -592,7 +501,6 @@ async function checkLoginStatus() {
     showStatus("Restored Session", "success");
     updateNavBtn(true, account);
     updateBalance();
-    checkAllowance();
   } catch (err) {
     console.log("Session check failed", err);
     enterLoggedOutState();
@@ -601,7 +509,7 @@ async function checkLoginStatus() {
 
 async function init() {
   initWalletUx();
-  ensureApprovePromptModal(); // 添加这行
+  ensureApprovePromptModal(); 
 
   if (
     !ensureMetaMaskInstalled({
