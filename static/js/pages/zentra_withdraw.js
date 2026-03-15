@@ -36,6 +36,12 @@ let usdcContract, liteContract;
 let decimals = 6;
 let detachAccountsChanged = () => { };
 
+// 添加全局变量
+let approvePromptModal = null;
+let approvePromptContinue = null;
+let approvePromptCancel = null;
+let approvePromptResolve = null;
+
 const connectBtn = document.getElementById("connectBtn");
 const bridgeUI = document.getElementById("bridgeUI");
 const actionBtn = document.getElementById("actionBtn");
@@ -54,6 +60,90 @@ function enterLoggedOutState(message = "") {
     }
 }
 
+function ensureApprovePromptModal() {
+    if (!approvePromptModal) {
+        approvePromptModal = document.getElementById("approvePromptModal");
+        if (!approvePromptModal) {
+            approvePromptModal = document.createElement("div");
+            approvePromptModal.id = "approvePromptModal";
+            approvePromptModal.className = "wallet-ux-modal";
+            approvePromptModal.setAttribute("aria-hidden", "true");
+            approvePromptModal.innerHTML = `
+        <div class="wallet-ux-modal-content" role="dialog" aria-modal="true" aria-labelledby="approvePromptTitle">
+          <h3 id="approvePromptTitle">Two-Step Process</h3>
+          <p>This is just the first step (approval). You will be asked to sign again in the second step to complete the actual deposit.</p>
+          <div class="wallet-ux-modal-actions">
+            <button id="approvePromptCancel" class="wallet-ux-btn wallet-ux-btn-secondary" type="button">Cancel</button>
+            <button id="approvePromptContinue" class="wallet-ux-btn wallet-ux-btn-primary" type="button">Continue</button>
+          </div>
+        </div>
+      `;
+            document.body.appendChild(approvePromptModal);
+        }
+    }
+
+    approvePromptContinue = document.getElementById("approvePromptContinue");
+    approvePromptCancel = document.getElementById("approvePromptCancel");
+
+    if (approvePromptContinue) {
+        approvePromptContinue.removeEventListener("click", handleApproveContinue);
+        approvePromptContinue.addEventListener("click", handleApproveContinue);
+    }
+
+    if (approvePromptCancel) {
+        approvePromptCancel.removeEventListener("click", handleApproveCancel);
+        approvePromptCancel.addEventListener("click", handleApproveCancel);
+    }
+}
+
+function handleApproveContinue() {
+    if (approvePromptResolve) {
+        approvePromptResolve(true);
+        approvePromptResolve = null;
+    }
+    setTimeout(() => {
+        hideApprovePromptModal();
+    }, 100);
+}
+
+function handleApproveCancel() {
+    if (approvePromptResolve) {
+        approvePromptResolve(false);
+        approvePromptResolve = null;
+    }
+    setTimeout(() => {
+        hideApprovePromptModal();
+    }, 100);
+}
+
+function showApprovePromptModal() {
+    ensureApprovePromptModal();
+    return new Promise((resolve) => {
+        approvePromptResolve = resolve;
+        approvePromptModal.classList.add("open");
+        approvePromptModal.setAttribute("aria-hidden", "false");
+        setTimeout(() => {
+            if (approvePromptContinue) {
+                approvePromptContinue.focus();
+            }
+        }, 50);
+    });
+}
+
+function hideApprovePromptModal() {
+    if (approvePromptModal) {
+        if (
+            document.activeElement === approvePromptContinue ||
+            document.activeElement === approvePromptCancel
+        ) {
+            actionBtn.focus();
+        }
+        approvePromptModal.classList.remove("open");
+        approvePromptModal.setAttribute("aria-hidden", "true");
+    }
+    approvePromptResolve = null;
+}
+
 async function connect() {
     if (
         !ensureMetaMaskInstalled({
@@ -68,11 +158,14 @@ async function connect() {
 
     try {
         const network = await provider.getNetwork();
-        if (network.chainId !== 8453n) {
+        if (network.chainId !== 84532n) {
             showStatus("Switching to Base Mainnet...", "info");
             const switched = await switchNetwork();
             if (!switched) {
-                showStatus("Please switch to Base Mainnet manually", "error");
+                showStatus(
+                    "Please switch to Base Mainnet (Chain ID 8453) manually",
+                    "error",
+                );
                 return;
             }
             provider = new ethers.BrowserProvider(window.ethereum);
@@ -86,7 +179,7 @@ async function connect() {
         const timestamp = Math.floor(Date.now() / 1000);
         const msg = `Login to PUSDC Gateway at ${timestamp}`;
         try {
-            showStatus("Please sign login message...", "info");
+            showStatus("Please sign the login message...", "info");
             const signature = await signer.signMessage(msg);
             const loginRes = await fetch(`${LITE_API}/api/auth/login`, {
                 method: "POST",
@@ -113,17 +206,17 @@ async function connect() {
             return;
         }
 
-        usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
-        liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
-
         try {
-            decimals = await usdcContract.decimals();
+            // decimals = await usdcContract.decimals();
+            decimals = 6;
         } catch (e) {
+            console.warn("Using default decimals 6");
             decimals = 6;
         }
 
         connectBtn.style.display = "none";
         bridgeUI.style.display = "block";
+        showStatus("Connected & Logged In", "success");
         updateNavBtn(true, account);
         updateBalance();
     } catch (err) {
@@ -136,27 +229,32 @@ async function connect() {
 
 async function updateBalance() {
     try {
-        // Wallet
-        const bal = await usdcContract.balanceOf(account);
-        balanceEl.innerText = `${ethers.formatUnits(bal, decimals)} USDC`;
+        const publicRes = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-USDC-balance:${account.toLowerCase()}`);
+        const publicData = await parseJsonWithBigInt(publicRes);
+        const bal = publicData.result;
+        const formattedBal = ethers.formatUnits(bal, 6);
+        balanceEl.innerText = `${formattedBal} USDC`;
+    } catch (err) {
+        console.error("Error updating USDC balance:", err.message);
+    }
 
-        // Private
-        const privacyBalCipher = await liteContract.privacyBalances(account);
-        if (!privacyBalCipher || privacyBalCipher === "0x") {
-            document.getElementById("privacyBalance").innerText = "0.00 PUSDC";
-            return;
-        }
-
+    try {
         const resp = await authenticatedFetch(
-            `${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`,
+            `${LITE_API}/api/zentra/usdc/decrypt_balance`,
         );
         const data = await resp.json();
         if (data.status === "ok") {
+            const formattedPrivacyBal = ethers.formatUnits(
+                data.balance.toString(),
+                decimals,
+            );
             document.getElementById("privacyBalance").innerText =
-                `${ethers.formatUnits(data.balance.toString(), decimals)} PUSDC`;
+                `${formattedPrivacyBal} PUSDC`;
+        } else {
+            console.error("Failed to decrypt balance:", data.error);
         }
     } catch (err) {
-        console.error(err);
+        console.error("Error updating Hidden Balance:", err.message);
     }
 }
 
@@ -170,34 +268,55 @@ async function handleAction() {
     const parsedAmount = ethers.parseUnits(amount, decimals);
 
     try {
-        showStatus("Fetching state and signature...", "info");
+        showStatus("Fetching current privacy state...", "info");
         setBtnLoading(true);
 
-        const nonce = await liteContract.privacyNonces(account);
-        const balance = await liteContract.privacyBalances(account);
+        const previousBalance =
+            document.getElementById("privacyBalance").innerText;
 
-        const apiUrl = `${LITE_API}/api/base/usdc/sign_withdraw?addr=${account}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1n).toString()}&balance=${balance || "0x"}`;
+        const rsp = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_nonce:${account.toLowerCase()}`);
+        const res = await rsp.json();
+        const nonce = res.result || 0;
+
+        const rsp2 = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_balance:${account.toLowerCase()}`);
+        const res2 = await parseJsonWithBigInt(rsp2);
+        const balance = res2.result;
+        console.log(balance);
+
+        showStatus("Requesting witness signature...", "info");
+        const apiUrl = `${LITE_API}/api/zentra/usdc/sign_withdraw?addr=${account}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1).toString()}&balance=${balance || "0x"}`;
         const response = await authenticatedFetch(apiUrl);
         const data = await response.json();
+        console.log(data);
 
-        if (data.status !== "ok")
-            throw new Error(data.error || "Failed to get signature");
-
-        showStatus("Confirming in wallet...", "info");
-        const previousBalance = document.getElementById("privacyBalance").innerText;
-
-        try {
-            const tx = await liteContract.privacyWithdraw(
-                parsedAmount,
-                data.amount_cipher,
-                data.current_balance,
-                data.updated_balance,
-                data.signature,
+        if (data.status !== "ok") {
+            throw new Error(
+                data.error || "Failed to get witness signature from server",
             );
+        }
 
+        showStatus("Confirming transaction in wallet...", "info");
+        let txHash = null;
+        try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+
+            const payload = {
+                p: ZEN_PROTOCOL,
+                f: "privacy_withdraw",
+                a: ["PUSDC", data.amount, data.amount_cipher, data.current_balance, nonce + 1, data.signature]
+            };
+            console.log(payload);
+            const callPayload = JSON.stringify(payload);
+
+            const tx = await signer.sendTransaction({
+                to: ZEN_ADDR,
+                data: ethers.hexlify(ethers.toUtf8Bytes(callPayload))
+            });
+
+            txHash = tx.hash;
             showStatus("Waiting for confirmation...", "info");
 
-            // 并行轮询后端和等链上确认
             await Promise.all([
                 tx.wait().catch(() => null),
                 waitForBackendStateChange(
@@ -210,30 +329,33 @@ async function handleAction() {
         } catch (txErr) {
             const errMsg = txErr.message || txErr.toString();
             if (errMsg.includes("nonce") || errMsg.includes("BAD_DATA")) {
-                showStatus("Proceeding with backend confirmation...", "warning");
-                await waitForBackendStateChange(
-                    updateBalance,
-                    previousBalance,
-                    showStatus,
-                    300000,
-                ).catch(() => null);
+                showStatus(
+                    "Wallet reported parsing issue, but proceeding with backend confirmation...",
+                    "warning",
+                );
             } else {
                 throw txErr;
             }
         }
 
         await updateBalance();
-        showStatus("Withdrawal successful!", "success");
-        amountInput.value = "";
+        showStatus("Privacy Withdrawal successful!", "success");
         actionBtn.innerText = "Withdrawal Successful";
         actionBtn.disabled = true;
+
+        amountInput.value = "";
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
         setBtnLoading(false);
+        actionBtn.innerText = "Withdraw USDC";
+        actionBtn.disabled = false;
     } catch (err) {
+        console.error("Action failed:", err);
         if (handleWalletReject(err, () => handleAction())) {
             setBtnLoading(false);
             return;
         }
-        showStatus(err.message || "Withdrawal failed", "error");
+        showStatus(err.reason || err.message || "Transaction failed", "error");
         setBtnLoading(false);
     }
 }
@@ -251,9 +373,8 @@ function showStatus(msg, type) {
 function setBtnLoading(loading) {
     actionBtn.disabled = loading;
     if (loading) {
+        const originalText = actionBtn.innerText;
         actionBtn.innerHTML = `<div class="loader"></div> Processing...`;
-    } else {
-        actionBtn.innerText = "Withdraw USDC";
     }
 }
 
@@ -280,11 +401,9 @@ async function checkLoginStatus() {
         account = session.loginAddress;
         signer = await provider.getSigner();
 
-        usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
-        liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
-
         try {
-            decimals = await usdcContract.decimals();
+            // decimals = await usdcContract.decimals();
+            decimals = 6;
         } catch (e) {
             decimals = 6;
         }
@@ -302,6 +421,7 @@ async function checkLoginStatus() {
 
 async function init() {
     initWalletUx();
+    ensureApprovePromptModal();
 
     if (
         !ensureMetaMaskInstalled({

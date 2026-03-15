@@ -176,7 +176,8 @@ export async function switchNetwork() {
         return false;
     }
 
-    const chainIdHex = "0x2105";
+    // const chainIdHex = "0x2105"; // Base Mainnet
+    const chainIdHex = "0x14a34"; // Base Sepolia
     try {
         await window.ethereum.request({
             method: "wallet_switchEthereumChain",
