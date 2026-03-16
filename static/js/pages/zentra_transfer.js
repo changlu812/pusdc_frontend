@@ -17,6 +17,7 @@ import {
     pollCancelFlag,
     waitForBackendStateChange,
     parseJsonWithBigInt,
+    fetchZentraState,
 } from "../common/zentra_common.js";
 import {
     initWalletUx,
@@ -216,8 +217,7 @@ async function connect() {
 
 async function updateBalance() {
     try {
-        const publicRes = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-USDC-balance:${account.toLowerCase()}`);
-        const publicData = await parseJsonWithBigInt(publicRes);
+        const publicData = await fetchZentraState(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-USDC-balance:${account.toLowerCase()}`);
         const bal = publicData.result;
         const formattedBal = ethers.formatUnits(bal, 6);
         balanceEl.innerText = `${formattedBal} USDC`;
@@ -268,21 +268,18 @@ async function handleAction() {
             document.getElementById("privacyBalance").innerText;
 
         // 1. Get current Nonces and Balances
-        const rsp = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_nonce:${account.toLowerCase()}`);
-        const res = await rsp.json();
-        const nonce = res.result || 0;
+        const res = await fetchZentraState(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_nonce:${account.toLowerCase()}`);
+        const nonce = res.result;
 
-        const rsp2 = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_balance:${account.toLowerCase()}`);
-        const res2 = await parseJsonWithBigInt(rsp2);
+        const res2 = await fetchZentraState(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_balance:${account.toLowerCase()}`);
         const senderBalance = res2.result;
 
-        const rsp3 = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_balance:${toAddr.toLowerCase()}`);
-        const res3 = await parseJsonWithBigInt(rsp3);
+        const res3 = await fetchZentraState(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_balance:${toAddr.toLowerCase()}`);
         const receiverBalance = res3.result;
 
         // 2. Fetch signature from API
         showStatus("Requesting witness signature...", "info");
-        const apiUrl = `${LITE_API}/api/zentra/usdc/sign_transfer?from_addr=${account}&to_addr=${toAddr}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1).toString()}&sender_balance=${senderBalance || "0x"}&receiver_balance=${receiverBalance || "0x"}`;
+        const apiUrl = `${LITE_API}/api/zentra/usdc/sign_transfer?from_addr=${account}&to_addr=${toAddr}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1n).toString()}&sender_balance=${senderBalance || "0x"}&receiver_balance=${receiverBalance || "0x"}`;
 
         const response = await authenticatedFetch(apiUrl);
         const data = await response.json();
@@ -302,7 +299,7 @@ async function handleAction() {
             const payload = {
                 p: ZEN_PROTOCOL,
                 f: "privacy_transfer",
-                a: ["PUSDC", toAddr, data.amount_cipher, nonce + 1, data.signature]
+                a: ["PUSDC", toAddr, data.amount_cipher, nonce + 1n, data.signature]
             };
             const callPayload = JSON.stringify(payload);
 

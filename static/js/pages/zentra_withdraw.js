@@ -22,6 +22,7 @@ import {
     pollCancelFlag,
     waitForBackendStateChange,
     parseJsonWithBigInt,
+    fetchZentraState,
 } from "../common/zentra_common.js";
 import {
     initWalletUx,
@@ -229,8 +230,7 @@ async function connect() {
 
 async function updateBalance() {
     try {
-        const publicRes = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-USDC-balance:${account.toLowerCase()}`);
-        const publicData = await parseJsonWithBigInt(publicRes);
+        const publicData = await fetchZentraState(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-USDC-balance:${account.toLowerCase()}`);
         const bal = publicData.result;
         const formattedBal = ethers.formatUnits(bal, 6);
         balanceEl.innerText = `${formattedBal} USDC`;
@@ -274,17 +274,15 @@ async function handleAction() {
         const previousBalance =
             document.getElementById("privacyBalance").innerText;
 
-        const rsp = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_nonce:${account.toLowerCase()}`);
-        const res = await rsp.json();
-        const nonce = res.result || 0;
+        const res = await fetchZentraState(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_nonce:${account.toLowerCase()}`);
+        const nonce = res.result;
 
-        const rsp2 = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_balance:${account.toLowerCase()}`);
-        const res2 = await parseJsonWithBigInt(rsp2);
+        const res2 = await fetchZentraState(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_balance:${account.toLowerCase()}`);
         const balance = res2.result;
         console.log(balance);
 
         showStatus("Requesting witness signature...", "info");
-        const apiUrl = `${LITE_API}/api/zentra/usdc/sign_withdraw?addr=${account}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1).toString()}&balance=${balance || "0x"}`;
+        const apiUrl = `${LITE_API}/api/zentra/usdc/sign_withdraw?addr=${account}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1n).toString()}&balance=${balance || "0x"}`;
         const response = await authenticatedFetch(apiUrl);
         const data = await response.json();
         console.log(data);
@@ -304,7 +302,7 @@ async function handleAction() {
             const payload = {
                 p: ZEN_PROTOCOL,
                 f: "privacy_withdraw",
-                a: ["PUSDC", data.amount, data.amount_cipher, data.current_balance, nonce + 1, data.signature]
+                a: ["PUSDC", data.amount, data.amount_cipher, data.current_balance, nonce + 1n, data.signature]
             };
             console.log(payload);
             const callPayload = JSON.stringify(payload);

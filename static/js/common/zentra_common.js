@@ -275,3 +275,22 @@ export const parseJsonWithBigInt = async (response) => {
         return value;
     });
 };
+
+/**
+ * 封装的 Zentra 状态获取函数，用于统一处理 get_latest_state 接口。
+ * @param {string} url - 请求的完整 URL
+ * @returns {Object} 清洗后的数据对象，result 为 null 时强制设为 0n
+ */
+export async function fetchZentraState(url) {
+    try {
+        const response = await fetch(url);
+        const data = await parseJsonWithBigInt(response);
+        if (data.result === null) {
+            data.result = 0n;
+        }
+        return data;
+    } catch (err) {
+        console.error("Failed to fetch Zentra state:", err);
+        return { result: 0n }; // 兜底返回，防止后续逻辑崩溃
+    }
+}

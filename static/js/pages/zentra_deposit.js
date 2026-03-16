@@ -22,6 +22,7 @@ import {
     pollCancelFlag,
     waitForBackendStateChange,
     parseJsonWithBigInt,
+    fetchZentraState,
 } from "../common/zentra_common.js";
 import {
     initWalletUx,
@@ -241,8 +242,7 @@ async function updateBalance() {
     // 更新 Wallet Balance
     try {
         // console.log("account:", account);
-        const publicRes = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-USDC-balance:${account.toLowerCase()}`);
-        const publicData = await parseJsonWithBigInt(publicRes);
+        const publicData = await fetchZentraState(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-USDC-balance:${account.toLowerCase()}`);
         const bal = publicData.result;
         // console.log("USDC Balance:", bal);
         const formattedBal = ethers.formatUnits(bal, 6);
@@ -298,13 +298,11 @@ async function handleAction() {
 
     // 1. Get current Nonce and Balance from contract
     // const nonce = await liteContract.privacyNonces(account);
-    const rsp = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_nonce:${account.toLowerCase()}`);
-    const res = await rsp.json();
-    const nonce = res.result || 0;
+    const res = await fetchZentraState(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-PUSDC-privacy_nonce:${account.toLowerCase()}`);
+    const nonce = res.result;
 
     // const balance = await liteContract.privacyBalances(account);
-    const rsp2 = await fetch(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-USDC-balance:${account.toLowerCase()}`);
-    const res2 = await parseJsonWithBigInt(rsp2);
+    const res2 = await fetchZentraState(`${ZENTRA_API_URL}/api/get_latest_state?prefix=${NETWORK_NAME}-USDC-balance:${account.toLowerCase()}`);
     const balance = res2.result;
 
     // 2. Fetch signature and encrypted amounts from API
@@ -333,7 +331,7 @@ async function handleAction() {
         const payload = {
             p: ZEN_PROTOCOL, // Protocol name from notes.md
             f: "privacy_deposit",
-            a: ["PUSDC", data.amount, data.amount_cipher, nonce + 1, data.signature]
+            a: ["PUSDC", data.amount, data.amount_cipher, nonce + 1n, data.signature]
         };
         const callPayload = JSON.stringify(payload);
 
