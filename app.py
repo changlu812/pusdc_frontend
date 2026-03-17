@@ -1,4 +1,4 @@
-from flask import Flask, render_template, abort,request,Response
+from flask import Flask, render_template, abort, request
 import os
 
 app = Flask(__name__)
@@ -16,7 +16,7 @@ def skill_page():
 @app.route('/zentra/<action>')
 def zentra_pages(action):
   template_name = f"zentra_{action}.html"
-  if os.path.exists(os.path.join(app.template_folder,template_name)):
+  if os.path.exists(os.path.join(app.template_folder, template_name)):
     return render_template(template_name)
   abort(404)
 
@@ -24,7 +24,7 @@ def zentra_pages(action):
 @app.route('/base/<action>')
 def base_pages(action):
   template_name = f"base_{action}.html"
-  if os.path.exists(os.path.join(app.template_folder,template_name)):
+  if os.path.exists(os.path.join(app.template_folder, template_name)):
     return render_template(template_name)
   abort(404)
 
@@ -32,9 +32,9 @@ def base_pages(action):
 @app.route('/email/<action>')
 def email_pages(action):
   template_name = f"email_{action}.html"
-  if os.path.exists(os.path.join(app.template_folder,template_name)):
+  if os.path.exists(os.path.join(app.template_folder, template_name)):
     return render_template(template_name)
   abort(404)
 
 if __name__ == '__main__':
-  app.run(host='127.0.0.1',port=5000,debug=True)
+  app.run(host='127.0.0.1', port=5000, debug=True)
