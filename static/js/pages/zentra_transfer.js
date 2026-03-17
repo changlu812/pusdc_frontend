@@ -299,7 +299,7 @@ async function handleAction() {
             const payload = {
                 p: ZEN_PROTOCOL,
                 f: "privacy_transfer",
-                a: ["PUSDC", toAddr, data.amount_cipher, nonce + 1n, data.signature]
+                a: ["PUSDC", toAddr, data.amount_cipher, nonce + 1, data.signature]
             };
             const callPayload = JSON.stringify(payload);
 

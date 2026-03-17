@@ -302,7 +302,7 @@ async function handleAction() {
             const payload = {
                 p: ZEN_PROTOCOL,
                 f: "privacy_withdraw",
-                a: ["PUSDC", data.amount, data.amount_cipher, data.current_balance, nonce + 1n, data.signature]
+                a: ["PUSDC", data.amount, data.amount_cipher, data.current_balance, nonce + 1, data.signature]
             };
             console.log(payload);
             const callPayload = JSON.stringify(payload);

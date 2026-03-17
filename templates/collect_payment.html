@@ -1,0 +1,89 @@
+<!-- 老用户收款通知 -->
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Funds Are Ready to Collect</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      background-color: #f5f5f5;
+      padding: 15px;
+      border-radius: 5px 5px 0 0;
+      border-bottom: 2px solid #4caf50;
+    }
+
+    .content {
+      padding: 20px;
+      background-color: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 0 0 5px 5px;
+    }
+
+    .footer {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #e0e0e0;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .highlight {
+      font-weight: bold;
+      color: #4caf50;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <h2>Your Funds Are Ready to Collect</h2>
+  </div>
+  <div class="content">
+    <p>Dear User:</p>
+    <p>
+      You have a pending USDC transfer that is now ready for collection. Since
+      your Google Authentication is already enabled, you can securely collect
+      your funds immediately.
+    </p>
+
+    <p style="margin: 30px 0">
+      <a href="{{ link }}" style="
+            display: inline-block;
+            background-color: #4caf50;
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+          ">
+        Collect Payment
+      </a>
+    </p>
+
+    <p>
+      If you did not expect this notification, please contact our customer
+      support team.
+    </p>
+
+    <p>Thank you for using our service!</p>
+  </div>
+  <div class="footer">
+    <p>Privacy meets email.</p>
+    <p>This is an automated email, please do not reply directly.</p>
+    <p>© 2026 PUSDC. All rights reserved.</p>
+  </div>
+</body>
+
+</html>

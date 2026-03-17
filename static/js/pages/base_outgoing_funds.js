@@ -393,7 +393,7 @@ function renderOutgoingFunds(funds) {
       const statusMeta = STATUS_META[fund.transfer_status] || STATUS_META.DRAFT;
 
       tableHtml += `
-        <tr onclick="window.location.href='base_email.html?tx_no=${fund.tx_no}'">
+        <tr onclick="window.location.href='/base/email?tx_no=${fund.tx_no}'">
           <td>#${fund.tx_no}</td>
           <td>${emailDisplay}</td>
           <td>${amountDisplay}</td>
