@@ -279,7 +279,7 @@ async function handleAction() {
 
         // 2. Fetch signature from API
         showStatus("Requesting witness signature...", "info");
-        const apiUrl = `${LITE_API}/api/zentra/usdc/sign_transfer?from_addr=${account}&to_addr=${toAddr}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1n).toString()}&sender_balance=${senderBalance || "0x"}&receiver_balance=${receiverBalance || "0x"}`;
+        const apiUrl = `${LITE_API}/api/zentra/usdc/sign_transfer?from_addr=${account}&to_addr=${toAddr}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1).toString()}&sender_balance=${senderBalance || "0x"}&receiver_balance=${receiverBalance || "0x"}`;
 
         const response = await authenticatedFetch(apiUrl);
         const data = await response.json();
