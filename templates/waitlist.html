@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Transfer Waitlist | AviaryPay</title>
+    <link rel="icon" href="/static/logos/icon.svg" type="image/svg+xml" />
+    <meta name="description" content="Join the AviaryPay Privacy Transfer waitlist. Be the first to experience anonymous USDC transfers on Base.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/common/base.css">
+    <link rel="stylesheet" href="/static/css/common/wallet_ux.css">
+    <link rel="stylesheet" href="/static/css/pages/waitlist.css">
+</head>
+
+<body>
+    <nav>
+        <a href="/" class="logo"><img src="/static/logos/logo_white.svg" alt="AviaryPay" style="height: 52px;"></a>
+        <div class="nav-actions">
+            <a href="/base/pay" class="btn-launch">Launch App</a>
+        </div>
+    </nav>
+
+    <main>
+        <div class="waitlist-container">
+            <div class="waitlist-card">
+                <div class="waitlist-header">
+                    <div class="badge">Privacy Beta</div>
+                    <h1>Privacy Transfer Waitlist</h1>
+                    <p class="subtitle">Be the first to experience <strong>Privacy USDC transfers</strong> — send funds without revealing amounts or addresses on-chain.</p>
+                    <p class="subtitle highlight">Want to try our products now? <a href="/base/pay">Try Pay to Email</a> — no waitlist needed!</p>
+                </div>
+
+                <form id="waitlistForm">
+                    <div class="input-section">
+                        <div class="input-group">
+                            <label for="emailInput">Email Address</label>
+                            <div class="input-wrapper">
+                                <svg class="input-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                                    <polyline points="22,6 12,13 2,6"/>
+                                </svg>
+                                <input type="email" id="emailInput" placeholder="your@email.com" required>
+                            </div>
+                        </div>
+
+                        <div class="wallet-section">
+                            <button type="button" id="connectWalletBtn" class="wallet-btn">
+                                <svg class="wallet-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                    <path d="M21 8V7l-3 2-3-2v1l3 2 3-2zM22 12H2v2h20v-2zM3 16h18v2H3v-2z" fill="currentColor"/>
+                                    <rect x="1" y="5" width="22" height="14" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                                </svg>
+                                <span id="walletBtnText">Connect MetaMask</span>
+                            </button>
+                            <p id="walletAddress" class="wallet-address" style="display: none;"></p>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="submit-btn" disabled>
+                        <span id="submitBtnText">Connect Wallet to Join</span>
+                        <div id="submitLoader" class="loader" style="display: none;"></div>
+                    </button>
+                </form>
+
+                <div id="status" class="status-area"></div>
+
+                <div class="features">
+                    <div class="feature">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        <span>Hidden transfer amounts on-chain</span>
+                    </div>
+                    <div class="feature">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        <span>Anonymous transactions</span>
+                    </div>
+                    <div class="feature">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        <span>Early adopter rewards</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="waitlist-visual">
+                <div class="floating-card card-1">
+                    <span class="emoji">🔒</span>
+                    <span>Hidden Amounts</span>
+                </div>
+                <div class="floating-card card-2">
+                    <span class="emoji">🕵️</span>
+                    <span>Anonymous</span>
+                </div>
+                <div class="floating-card card-3">
+                    <span class="emoji">🔐</span>
+                    <span>HE Encryption</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="/static/js/pages/waitlist.js"></script>
+</body>
+
+</html>

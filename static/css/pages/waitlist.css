@@ -1,0 +1,392 @@
+main {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 100px 24px 60px;
+    position: relative;
+    overflow: hidden;
+}
+
+.waitlist-container {
+    display: flex;
+    gap: 80px;
+    align-items: center;
+    max-width: 1100px;
+    width: 100%;
+    position: relative;
+    z-index: 1;
+}
+
+.waitlist-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 48px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.waitlist-header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--primary) 0%, #a855f7 100%);
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.waitlist-header h1 {
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 12px;
+    background: linear-gradient(to right, var(--primary), #a855f7);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+    color: var(--text-dim);
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.subtitle.highlight {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.subtitle.highlight a {
+    color: var(--primary);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.subtitle.highlight a:hover {
+    text-decoration: underline;
+}
+
+.input-section {
+    margin-bottom: 24px;
+}
+
+.input-section .input-group {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.input-section label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text);
+    text-align: left;
+}
+
+.input-section .input-wrapper {
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 16px;
+    color: var(--text-dim);
+    pointer-events: none;
+}
+
+.input-wrapper input {
+    width: 100%;
+    padding: 14px 16px 14px 48px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.input-wrapper input::placeholder {
+    color: var(--text-dim);
+}
+
+.input-wrapper input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.input-wrapper input:valid:not(:placeholder-shown) {
+    border-color: var(--success);
+}
+
+.wallet-section {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.wallet-btn {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 14px 20px 14px 48px;
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.wallet-btn .wallet-icon {
+    position: absolute;
+    left: 16px;
+}
+
+.wallet-btn:hover {
+    border-color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.wallet-btn.connected {
+    border-color: var(--success);
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.wallet-btn.connected .wallet-icon {
+    color: var(--success);
+}
+
+.wallet-icon {
+    flex-shrink: 0;
+}
+
+.wallet-address {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--success);
+    font-family: monospace;
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 16px 24px;
+    background: var(--primary);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.submit-btn:hover:not(:disabled) {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+}
+
+.submit-btn:disabled {
+    background: var(--glass);
+    color: var(--text-dim);
+    cursor: not-allowed;
+    box-shadow: none;
+    border: 1px solid var(--border);
+}
+
+.submit-btn.ready {
+    background: linear-gradient(135deg, var(--primary) 0%, #a855f7 100%);
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    50% {
+        box-shadow: 0 4px 24px rgba(99, 102, 241, 0.5);
+    }
+}
+
+.status-area {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 14px;
+    min-height: 20px;
+}
+
+.status-area.success {
+    color: var(--success);
+    background: rgba(34, 197, 94, 0.1);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--success);
+}
+
+.status-area.error {
+    color: var(--error);
+    background: rgba(239, 68, 68, 0.1);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--error);
+}
+
+.status-area.info {
+    color: var(--text-dim);
+    background: var(--glass);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.features {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.feature {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--text-dim);
+}
+
+.feature svg {
+    flex-shrink: 0;
+}
+
+.waitlist-visual {
+    position: relative;
+    width: 400px;
+    height: 400px;
+    flex-shrink: 0;
+}
+
+.floating-card {
+    position: absolute;
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    animation: float 6s ease-in-out infinite;
+}
+
+.floating-card .emoji {
+    font-size: 28px;
+}
+
+.card-1 {
+    top: 10%;
+    left: 5%;
+    animation-delay: 0s;
+}
+
+.card-2 {
+    top: 40%;
+    right: 0;
+    animation-delay: 2s;
+}
+
+.card-3 {
+    bottom: 15%;
+    left: 10%;
+    animation-delay: 4s;
+}
+
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-15px);
+    }
+}
+
+.loader {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 900px) {
+    .waitlist-container {
+        flex-direction: column;
+        gap: 40px;
+    }
+
+    .waitlist-visual {
+        display: none;
+    }
+
+    .waitlist-card {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .waitlist-card {
+        padding: 32px 24px;
+    }
+
+    .waitlist-header h1 {
+        font-size: 26px;
+    }
+}

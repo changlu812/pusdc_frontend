@@ -31,10 +31,15 @@ def base_pages(action):
 # Email系列路由
 @app.route('/email/<action>')
 def email_pages(action):
-  template_name = f"email_{action}.html"
-  if os.path.exists(os.path.join(app.template_folder, template_name)):
-    return render_template(template_name)
-  abort(404)
+    template_name = f"email_{action}.html"
+    if os.path.exists(os.path.join(app.template_folder, template_name)):
+        return render_template(template_name)
+    abort(404)
+
+# Waitlist路由
+@app.route('/waitlist')
+def waitlist_page():
+    return render_template('waitlist.html')
 
 def find_md_file(name):
   for f in os.listdir(app.template_folder):
