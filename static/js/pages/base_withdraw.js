@@ -3,7 +3,7 @@
 
 import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm";
 import {
-  LITE_API,
+  PUSDC_API,
   LITE_ADDR,
   USDC_ADDR,
   ERC20_ABI,
@@ -83,7 +83,7 @@ async function connect() {
     try {
       showStatus("Please sign login message...", "info");
       const signature = await signer.signMessage(msg);
-      const loginRes = await fetch(`${LITE_API}/api/auth/login`, {
+      const loginRes = await fetch(`${PUSDC_API}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -143,7 +143,7 @@ async function updateBalance() {
     }
 
     const resp = await authenticatedFetch(
-      `${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`,
+      `${PUSDC_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`,
     );
     const data = await resp.json();
     if (data.status === "ok") {
@@ -171,7 +171,7 @@ async function handleAction() {
     const nonce = await liteContract.privacyNonces(account);
     const balance = await liteContract.privacyBalances(account);
 
-    const apiUrl = `${LITE_API}/api/base/usdc/sign_withdraw?addr=${account}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1n).toString()}&balance=${balance || "0x"}`;
+    const apiUrl = `${PUSDC_API}/api/base/usdc/sign_withdraw?addr=${account}&amount=${parsedAmount.toString()}&nonce=${(nonce + 1n).toString()}&balance=${balance || "0x"}`;
     const response = await authenticatedFetch(apiUrl);
     const data = await response.json();
 

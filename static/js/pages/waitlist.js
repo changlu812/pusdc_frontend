@@ -1,5 +1,5 @@
 import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm";
-import { LITE_API, setAuthToken, getAuthToken } from "../common/base_common.js";
+import { PUSDC_API, setAuthToken, getAuthToken } from "../common/base_common.js";
 import {
     initWalletUx,
     ensureMetaMaskInstalled,
@@ -81,7 +81,7 @@ async function connectWallet() {
         showStatus("Please sign the login message...", "info");
         const signature = await signer.signMessage(msg);
 
-        const loginRes = await fetch(`${LITE_API}/api/auth/login`, {
+        const loginRes = await fetch(`${PUSDC_API}/api/auth/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -144,7 +144,7 @@ async function submitWaitlist(e) {
     try {
         showStatus("Submitting your info...", "info");
 
-        const response = await fetch(`${LITE_API}/api/waitlist_join`, {
+        const response = await fetch(`${PUSDC_API}/api/waitlist_join`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

@@ -7,8 +7,8 @@ export const ZEN_PROTOCOL = "zentest3";
 export const ZEN_ADDR = '0x00000000000000000000000000000000007a656e'; // hex of 'zen'
 export const NETWORK_NAME = 'base';
 
-// export const LITE_API = "http://127.0.0.1:8093";
-export const LITE_API = "https://api.pusdc.xyz";
+// export const PUSDC_API = "http://127.0.0.1:8093";
+export const PUSDC_API = "https://api.pusdc.xyz";
 
 // export const INBOX_ADDR = "0x5F40E750B1c5dCe3c55942e35DA0D4Ec83cBd80D";
 // export const LITE_ADDR = "0x9c2f26F7Da88A8B9b0C35332510AB3763C73BD61";
@@ -98,7 +98,7 @@ export async function resolveSessionContext() {
     }
 
     try {
-        const response = await authenticatedFetch(`${LITE_API}/api/auth/status`);
+        const response = await authenticatedFetch(`${PUSDC_API}/api/auth/status`);
         const data = await response.json();
 
         if (!response.ok || !data?.is_logged_in || !data?.address) {

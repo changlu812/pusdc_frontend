@@ -2,7 +2,7 @@
 // Keep page-specific bootstrap logic here; move shared helpers to static/js/common/.
 
 // 复用 email_common 的共享工具：API 配置、token 存取、URL 参数读取。
-const { LITE_API, setAuthToken, getQueryParam } = window.PUSDCEmailCommon;
+const { PUSDC_API, setAuthToken, getQueryParam } = window.PUSDCEmailCommon;
 let currentEmail = "";
 let currentToken = "";
 
@@ -16,7 +16,7 @@ async function verify() {
 
   try {
     const response = await fetch(
-      `${LITE_API}/api/auth/email/verify?token=${token}`,
+      `${PUSDC_API}/api/auth/email/verify?token=${token}`,
     );
     const data = await response.json();
 
@@ -108,7 +108,7 @@ async function handleOTPVerification() {
 
   try {
     const response = await fetch(
-      `${LITE_API}/api/auth/email/otp_verify`,
+      `${PUSDC_API}/api/auth/email/otp_verify`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

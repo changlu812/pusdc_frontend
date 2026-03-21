@@ -2,8 +2,8 @@
 // 目标：集中维护 API 地址、token 存取和 URL 参数读取，减少重复代码。
 (function initEmailCommon(global) {
   // 后端 API 根地址。后续切换环境时统一在这里改。
-  // const LITE_API = "http://127.0.0.1:8093";
-  const LITE_API = "https://api.pusdc.xyz";
+  // const PUSDC_API = "http://127.0.0.1:8093";
+  const PUSDC_API = "https://api.pusdc.xyz";
   const TOKEN_KEY = "pusdc_auth_token";
 
   // 统一 token 读写，避免各页面散落 localStorage 键名。
@@ -36,7 +36,7 @@
   }
 
   global.PUSDCEmailCommon = Object.freeze({
-    LITE_API,
+    PUSDC_API,
     TOKEN_KEY,
     getAuthToken,
     setAuthToken,

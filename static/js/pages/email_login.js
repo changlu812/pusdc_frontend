@@ -10,7 +10,7 @@ const successState = document.getElementById("successState");
 const header = document.querySelector(".header");
 
 // 复用 email_common 中的共享配置，避免多页面重复维护 API 地址。
-const { LITE_API } = window.PUSDCEmailCommon;
+const { PUSDC_API } = window.PUSDCEmailCommon;
 
 async function handleSendLink() {
   const email = emailInput.value.trim();
@@ -21,7 +21,7 @@ async function handleSendLink() {
 
   setLoading(true);
   try {
-    const response = await fetch(`${LITE_API}/api/auth/email/send`, {
+    const response = await fetch(`${PUSDC_API}/api/auth/email/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),

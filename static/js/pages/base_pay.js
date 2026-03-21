@@ -3,7 +3,7 @@
 
 import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm";
 import {
-  LITE_API,
+  PUSDC_API,
   LITE_ADDR,
   USDC_ADDR,
   INBOX_ADDR,
@@ -206,7 +206,7 @@ async function connect() {
       showStatus("Please sign the login message...", "info");
       const signature = await signer.signMessage(msg);
 
-      const loginRes = await fetch(`${LITE_API}/api/auth/login`, {
+      const loginRes = await fetch(`${PUSDC_API}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -270,7 +270,7 @@ async function updateBalance() {
         privacyBalanceEl.innerText = "0.00 PUSDC";
       } else {
         const resp = await authenticatedFetch(
-          `${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`,
+          `${PUSDC_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`,
         );
         const data = await resp.json();
         if (data.status === "ok") {

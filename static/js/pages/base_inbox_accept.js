@@ -3,7 +3,7 @@
 
 import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm";
 import {
-  LITE_API,
+  PUSDC_API,
   LITE_ADDR,
   USDC_ADDR,
   INBOX_ADDR,
@@ -88,7 +88,7 @@ async function connect() {
     try {
       showStatus("Please sign login message...", "info");
       const signature = await signer.signMessage(msg);
-      const loginRes = await fetch(`${LITE_API}/api/auth/login`, {
+      const loginRes = await fetch(`${PUSDC_API}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -147,7 +147,7 @@ async function updateBalance() {
 
     // Load basic info first without needing account
     const resp = await fetch(
-      `${LITE_API}/api/outgoing_fund?tx_no=${txNo}&credential=${credential}`,
+      `${PUSDC_API}/api/outgoing_fund?tx_no=${txNo}&credential=${credential}`,
     );
     const data = await resp.json();
 
@@ -194,7 +194,7 @@ async function updateBalance() {
             privacyBalanceEl.innerText = "0.00 PUSDC";
           } else {
             const resp = await authenticatedFetch(
-              `${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`,
+              `${PUSDC_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`,
             );
             const data = await resp.json();
             if (data.status === "ok") {
@@ -259,7 +259,7 @@ async function handleAction() {
     const txNo = urlParams.get("tx_no");
     const credential = urlParams.get("credential");
 
-    const response = await fetch(`${LITE_API}/api/collect_fund`, {
+    const response = await fetch(`${PUSDC_API}/api/collect_fund`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

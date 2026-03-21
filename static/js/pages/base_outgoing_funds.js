@@ -3,7 +3,7 @@
 
 import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.16.0/+esm";
 import {
-  LITE_API,
+  PUSDC_API,
   LITE_ADDR,
   USDC_ADDR,
   INBOX_ADDR,
@@ -105,7 +105,7 @@ async function connect() {
     try {
       showStatus("Please sign login message...", "info");
       const signature = await signer.signMessage(msg);
-      const loginRes = await fetch(`${LITE_API}/api/auth/login`, {
+      const loginRes = await fetch(`${PUSDC_API}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -169,7 +169,7 @@ async function updateBalance() {
       document.getElementById("privacyBalance").innerText = "0.00 PUSDC";
     } else {
       const resp = await authenticatedFetch(
-        `${LITE_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`,
+        `${PUSDC_API}/api/base/usdc/decrypt_balance?balance=${privacyBalCipher}`,
       );
       const data = await resp.json();
       if (data.status === "ok") {
@@ -225,7 +225,7 @@ async function handleAction() {
 
   // 2. Fetch signature from API
   showStatus("Requesting witness signature...", "info");
-  // const apiUrl = `${LITE_API}/api/base/usdc/sign_transfer?from_addr=${account}&to_addr=${toAddr}&amount=${parsedAmount.toString()}&nonce=${(senderNonce + 1n).toString()}&sender_balance=${senderBalance || '0x'}&receiver_balance=${receiverBalance || '0x'}`;
+  // const apiUrl = `${PUSDC_API}/api/base/usdc/sign_transfer?from_addr=${account}&to_addr=${toAddr}&amount=${parsedAmount.toString()}&nonce=${(senderNonce + 1n).toString()}&sender_balance=${senderBalance || '0x'}&receiver_balance=${receiverBalance || '0x'}`;
 
   // const response = await authenticatedFetch(apiUrl);
   // const data = await response.json();
@@ -330,7 +330,7 @@ connectBtn.addEventListener("click", connect);
 async function fetchOutgoingFunds() {
   const requestSeq = ++fundsRequestSeq;
   try {
-    const response = await authenticatedFetch(`${LITE_API}/api/outgoing_funds`);
+    const response = await authenticatedFetch(`${PUSDC_API}/api/outgoing_funds`);
     const data = await response.json();
     if (data.status === "ok") {
       const baseFunds = (data.result || []).map((fund) => ({
