@@ -1,4 +1,4 @@
-from flask import Flask, render_template, abort, request
+from flask import Flask, render_template, abort, request, Response
 import os
 
 app = Flask(__name__)
@@ -34,6 +34,21 @@ def email_pages(action):
   template_name = f"email_{action}.html"
   if os.path.exists(os.path.join(app.template_folder, template_name)):
     return render_template(template_name)
+  abort(404)
+
+def find_md_file(name):
+  for f in os.listdir(app.template_folder):
+    if f.lower() == name.lower() and f.endswith('.md'):
+      return f
+  return None
+
+@app.route('/<path:filename>.md')
+def serve_md(filename):
+  md_file = find_md_file(f"{filename}.md")
+  if md_file:
+    with open(os.path.join(app.template_folder, md_file), 'r', encoding='utf-8') as f:
+      content = f.read()
+    return Response(content, mimetype='text/plain')
   abort(404)
 
 if __name__ == '__main__':
