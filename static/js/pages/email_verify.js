@@ -134,7 +134,7 @@ async function handleOTPVerification() {
               `;
 
       setTimeout(() => {
-        window.location.href = "base_deposit.html";
+        window.location.href = "/base/deposit";
       }, 1500);
     } else {
       status.innerText = data.error || "Invalid OTP code";
@@ -159,4 +159,3 @@ function showError(title, msg) {
 
 // Start verification
 verify();
-
