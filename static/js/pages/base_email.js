@@ -893,7 +893,7 @@ async function init() {
   }
 
   if (!isValidTxNo(currentTxNo)) {
-    window.location.href = "base_outgoing_funds.html";
+    window.location.href = "/base/outgoing_funds";
     return;
   }
 

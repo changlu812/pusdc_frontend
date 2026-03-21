@@ -153,7 +153,7 @@ async function updateBalance() {
 
     if (data["2fa"] == null || data["2fa"] == false) {
       showStatus("2FA not enabled", "error");
-      window.location.href = `/email_authenticator.html?tx_no=${txNo}&credential=${credential}`;
+      window.location.href = `/email/authenticator?tx_no=${txNo}&credential=${credential}`;
       // return;
     }
     if (data.status === "ok" && data.result) {

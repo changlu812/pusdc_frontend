@@ -168,7 +168,7 @@ async function handleOTPVerification() {
         `;
 
     setTimeout(() => {
-      window.location.href = `base_inbox_accept.html?tx_no=${tx_no}&credential=${credential}`;
+      window.location.href = `/base/inbox_accept?tx_no=${tx_no}&credential=${credential}`;
     }, 1500);
   } else {
     status.innerText = data.error || "Invalid OTP code";
@@ -193,4 +193,3 @@ function showError(title, msg) {
 
 // Start verification
 verify();
-
