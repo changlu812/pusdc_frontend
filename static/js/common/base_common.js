@@ -223,6 +223,23 @@ export const setPollCancelFlag = (value) => {
  * @param {number} timeoutMs - 超时时间（毫秒），默认 5 分钟
  * @param {string} balanceElementId - 需要对比的余额 DOM id，默认 privacyBalance
  */
+export async function checkWhitelistStatus(address) {
+  if (!address) {
+    return { whitelisted: false, reason: "no_address" };
+  }
+
+  try {
+    const response = await fetch(
+      `${PUSDC_API}/api/whitelist/check?address=${address}`,
+    );
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    console.error("Whitelist check failed:", err);
+    return { whitelisted: false, reason: "check_failed", error: err };
+  }
+}
+
 export async function waitForBackendStateChange(
   updateBalance,
   previousBalance,

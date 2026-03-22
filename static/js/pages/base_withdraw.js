@@ -17,6 +17,7 @@ import {
   switchNetwork,
   pollCancelFlag,
   waitForBackendStateChange,
+  checkWhitelistStatus,
 } from "../common/base_common.js";
 import {
   initWalletUx,
@@ -273,6 +274,13 @@ async function checkLoginStatus() {
 
   try {
     account = session.loginAddress;
+
+    const whitelistCheck = await checkWhitelistStatus(account);
+    if (!whitelistCheck.whitelisted) {
+      window.location.href = "/waitlist";
+      return;
+    }
+
     signer = await provider.getSigner();
 
     usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
