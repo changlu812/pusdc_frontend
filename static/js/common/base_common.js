@@ -225,18 +225,18 @@ export const setPollCancelFlag = (value) => {
  */
 export async function checkWhitelistStatus(address) {
   if (!address) {
-    return { whitelisted: false, reason: "no_address" };
+    return { in_whitelist: false, reason: "no_address" };
   }
 
   try {
-    const response = await fetch(
-      `${PUSDC_API}/api/whitelist/check?address=${address}`,
+    const response = await authenticatedFetch(
+      `${PUSDC_API}/api/whitelist_check?address=${address}`,
     );
     const data = await response.json();
     return data;
   } catch (err) {
     console.error("Whitelist check failed:", err);
-    return { whitelisted: false, reason: "check_failed", error: err };
+    return { in_whitelist: false, reason: "check_failed", error: err };
   }
 }
 

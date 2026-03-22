@@ -109,6 +109,18 @@ async function connect() {
       return;
     }
 
+    // Whitelist Check
+    try {
+      showStatus("Checking whitelist...", "info");
+      const whitelistCheck = await checkWhitelistStatus(account);
+      if (!whitelistCheck.in_whitelist) {
+        window.location.href = "/waitlist";
+        return;
+      }
+    } catch (wlErr) {
+      console.error("Whitelist check failed:", wlErr);
+    }
+
     usdcContract = new ethers.Contract(USDC_ADDR, ERC20_ABI, signer);
     liteContract = new ethers.Contract(LITE_ADDR, LITE_ABI, signer);
 
@@ -276,7 +288,7 @@ async function checkLoginStatus() {
     account = session.loginAddress;
 
     const whitelistCheck = await checkWhitelistStatus(account);
-    if (!whitelistCheck.whitelisted) {
+    if (!whitelistCheck.in_whitelist) {
       window.location.href = "/waitlist";
       return;
     }
